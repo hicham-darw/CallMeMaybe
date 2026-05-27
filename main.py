@@ -1,8 +1,6 @@
-from src.llm_sdk import llm_sdk
+def main():
+    print("Hello from callmemaybe!")
 
 
-model = llm_sdk.Small_LLM_Model()
-input_ids = model.encode("what is my name ?")
-print("model:", model)
-print("input ids encode():", input_ids);
-
+if __name__ == "__main__":
+    main()
