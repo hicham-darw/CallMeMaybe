@@ -37,14 +37,13 @@ if __name__ == '__main__':
 		USER PROMPT: {inp}
 
 		INSTRUCTIONS:
-			- If the prompt matches a available functions:
-		respond ONLY with this JSON STRUCTURE FROM AVAILABLE FUNCTIONS
-		
+			- If the prompt can call function from available functions:
+				REPLY WITH JSON STRUCTURE FROM AVAILABLE FUNCTIONS ONLY
 			- If the prompt does NOT match any available function, respond ONLY with:
-		{{
-			"function_call": null,
-			"error": "not match json file"
- 		}}
+				{{
+					"function_call": null,
+					"error": "not match json file"
+ 				}}
 
 		RULES:
 			- Output ONLY valid JSON. No extra text, no explanation, no markdown.
