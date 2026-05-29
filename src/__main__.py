@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
 		SYS_PROMPT = f"""
 		You are a function-calling AI assistant.
-		Your ONLY job is to analyze the user prompt and decide if it matches one o			f the available functions.
+		Your ONLY job is to analyze the user prompt and decide if it matches one of the available functions.
 
 		AVAILABLE FUNCTIONS:
 		[
@@ -37,25 +37,17 @@ if __name__ == '__main__':
 		USER PROMPT: {inp}
 
 		INSTRUCTIONS:
-			- If the prompt matches a function, respond ONLY with this JSON st				ructure:
-		{{
-			"function_call": {{
-			"name": "<function_name>",
-			"parameters": {{
-				"a": <value>,
-				"b": <value>
-				}}
-			}}
- 		}}
-
-			- If the prompt does NOT match any available function, respond ONL				Y with:
+			- If the prompt matches a available functions:
+		respond ONLY with this JSON STRUCTURE FROM AVAILABLE FUNCTIONS
+		
+			- If the prompt does NOT match any available function, respond ONLY with:
 		{{
 			"function_call": null,
 			"error": "not match json file"
  		}}
 
 		RULES:
-			- Output ONLY valid JSON. No extra text, no explanation, no markdo				wn.
+			- Output ONLY valid JSON. No extra text, no explanation, no markdown.
 			- Never invent functions that are not listed above.
 			- Extract numeric values from the user prompt accurately.
 		"""

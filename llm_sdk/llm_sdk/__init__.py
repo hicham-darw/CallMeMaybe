@@ -78,8 +78,8 @@ class Small_LLM_Model:
         self,
         prompt: str,
         temperature: float = 1.0,
-        top_k: int | None = 50,
-        max_new_tokens: int = 250,
+        top_k: int | None = 3,
+        max_new_tokens: int = 50,
     ) -> str:
         """
         Generate text autoregressively from a prompt.
