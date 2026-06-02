@@ -2,8 +2,9 @@
 from typing import Any
 from src.json_reader import JSONReader
 from src.json_writer import JSONWriter
-from src.parser import Parser
+from src.arg_parser import ArgParser
 from src.validator import PromptSchema
+from src.json_manager import JSONManager
 
 from sys import exit
 
@@ -12,11 +13,29 @@ if __name__ == '__main__':
     
     # parser her 
     
-	parser = Parser()
-	reader = JSONReader(
-     			parser.get_input_argument(),
-				parser.get_functions_definition(),
-            )
+	arg_parser = ArgParser()
+	arg_parser.initial_arguments()
+	json_manager = JSONManager(
+		arg_parser.get_functions_definition_path(),
+		arg_parser.get_prompts_path(),
+		arg_parser.get_model(),
+		arg_parser.get_output_path()
+	)
+	data = {
+		'functions_definition_path': arg_parser.get_functions_definition_path(),
+		'prompts_path': arg_parser.get_prompts_path()		
+	}
+	for stage in json_manager.get_stages():
+		# print("DATA:", '#' * 30)
+		# for k, v in data.items():
+		# 	print(f"{k}: {v}")
+		data = stage.execute(data)
+	print('#' * 40)
+	exit(0)
+	# reader = JSONReader(
+    #  			parser.get_input_argument(),
+	# 			parser.get_functions_definition(),
+    #         )
 	# writer = JSONWriter(
 	# 	parser.get_output_argument()
 	# )

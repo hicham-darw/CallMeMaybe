@@ -1,3 +1,4 @@
+from typing import Any
 
 
 class JSONWriter:
@@ -5,6 +6,10 @@ class JSONWriter:
     def __init__(self, output_file: str) -> None:
         self.__output_file: str = output_file
         self.__content: str = ''
+
+    # for pipeline execution
+    def execute(self, data: Any) -> Any:
+    	pass
 
     # getters
     def get_output_file(self) -> str:

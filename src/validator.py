@@ -22,9 +22,21 @@ class FunctionDefinitionSchema(BaseModel):
     parameters: dict[str, dict[str, Any]]
     returns: dict[str, str]
 
+    @model_validator(mode='before')
+    def validate_raw_data(cls, data: Any) -> Any:
+        if data['name'] is None:
+            raise Exception("Error: Function definition not found key 'name'")
+        elif data['description'] is None:
+            raise Exception("Error: Function definition not found key 'description'")
+        elif data['parameters'] is None:
+            raise Exception("Error: Function definition not found key 'parameters'")
+        elif data['returns'] is None:
+            raise  Exception("Error: Function definition not found key 'returns'")
+        return data
+
     @model_validator(mode='after')
     def validate_function_definition_schema(self) -> Self:
-        for key_param, val_param in self.parameters.items():
+        for val_param in self.parameters.values():
             if len(val_param.keys()) != 1:
                 raise Exception("key of each value in parameters accept only 'type' key.")
             for typ in val_param.keys():

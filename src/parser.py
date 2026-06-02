@@ -1,7 +1,7 @@
 import argparse
 
 
-class Parser:
+class ArgParser:
     def __init__(self) -> None:
         self.initial_arguments()
     
