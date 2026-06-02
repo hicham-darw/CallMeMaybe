@@ -1,15 +1,32 @@
-from llm_sdk.llm_sdk import Small_LLM_Model
-from src.Loader.Loader import JSONLoader
-from src.Parser.Parser import Parser
+# from llm_sdk.llm_sdk import Small_LLM_Model
+from typing import Any
+from src.json_reader import JSONReader
+from src.json_writer import JSONWriter
+from src.parser import Parser
+from src.validator import PromptSchema
 
 from sys import exit
+
 
 if __name__ == '__main__':
     
     # parser her 
     
 	parser = Parser()
-	parser.initial_arguments()
+	reader = JSONReader(
+     			parser.get_input_argument(),
+				parser.get_functions_definition(),
+            )
+	# writer = JSONWriter(
+	# 	parser.get_output_argument()
+	# )
+	reader.read_prompts()
+	reader.read_functions_definition()
+
+	reader.validate_prompts_json_file()
+	reader.validat_functions_definition_json_file()
+	# parser must has attributes JSONReader
+	
 	exit(0)
 	#loading files
 # 	json_loader = JSONLoader()
