@@ -24,13 +24,16 @@ class FunctionDefinitionSchema(BaseModel):
 
     @model_validator(mode='before')
     def validate_raw_data(cls, data: Any) -> Any:
-        if data['name'] is None:
+        print(data)
+        if not isinstance(data, dict):
+            raise Exception("data in validator not a dictionary.")
+        if data.get('name', None) is None:
             raise Exception("Error: Function definition not found key 'name'")
-        elif data['description'] is None:
+        elif data.get('description', None) is None:
             raise Exception("Error: Function definition not found key 'description'")
-        elif data['parameters'] is None:
+        elif data.get('parameters', None) is None:
             raise Exception("Error: Function definition not found key 'parameters'")
-        elif data['returns'] is None:
+        elif data.get('returns', None) is None:
             raise  Exception("Error: Function definition not found key 'returns'")
         return data
 
