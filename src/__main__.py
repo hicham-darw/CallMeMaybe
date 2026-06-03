@@ -26,11 +26,9 @@ if __name__ == '__main__':
 		'prompts_path': arg_parser.get_prompts_path()		
 	}
 	for stage in json_manager.get_stages():
-		print("DATA:", '#' * 30)
-		for k, v in data.items():
-			print(f"{k}: {v}")
 		data = stage.execute(data)
-	print('#' * 40)
+	print('FIN:', '#' * 40)
+ 
 	exit(0)
 	# reader = JSONReader(
     #  			parser.get_input_argument(),

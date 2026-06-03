@@ -27,6 +27,11 @@ class JSONReader(ProcessingStage):
 
     # for pipeline execution
     def execute(self, data: Any) -> Any:
+        print("READER:")
+        for k, v in data.items():
+            print(f"key: {k}")
+            print(f"value: {v}")
+        print("#" * 30)
         self.__read_functions_definition(data['functions_definition_path'])
         self.__read_prompts(data['prompts_path'])
         return {
@@ -48,8 +53,6 @@ class JSONReader(ProcessingStage):
             self.__prompts = data
         else:
             self.__functions_definition = data
-        print("data:\n", data)
-        print("type data:\n", type(data))
 
     def validate_prompts_json_file(self) -> None:
         for prompt in self.__prompts:
@@ -58,7 +61,7 @@ class JSONReader(ProcessingStage):
             except Exception as e:
                 print(e)
                 exit(0)
-        print('validata prompt successfully')
+        print('validate prompts successfully')
 
     def validat_functions_definition_json_file(self) -> None:
         for function_definition in self.__functions_definition:
@@ -75,4 +78,4 @@ class JSONReader(ProcessingStage):
             except Exception as e:
                 print(e)
                 exit(0)
-        print("validate functions definition structure.")
+        print("validate functions definition successfully.")

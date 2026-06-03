@@ -16,7 +16,7 @@ class JSONManager:
 		self.__stages: list[ProcessingStage]= [
       		JSONReader(),
         	JSONParser(),
-         	# JSONGenerator(),
+         	JSONGenerator(),
           	# JSONWriter()
         ]
 	

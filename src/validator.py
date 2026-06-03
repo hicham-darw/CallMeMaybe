@@ -24,7 +24,6 @@ class FunctionDefinitionSchema(BaseModel):
 
     @model_validator(mode='before')
     def validate_raw_data(cls, data: Any) -> Any:
-        print(data)
         if not isinstance(data, dict):
             raise Exception("data in validator not a dictionary.")
         if data.get('name', None) is None:

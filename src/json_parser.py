@@ -11,11 +11,19 @@ class JSONParser(ProcessingStage):
 
 	# for pipeline execution
 	def execute(self, data: Any) -> Any:
-		# must be parse content data
+		print("PARSER:")
+		for k, v in data.items():
+			print(f"key: {k}")
+			print(f"value: {v}")
+		print("#" * 30)
 		self.__is_valid_type(data)
 		self.__is_structure_prompts_valid(data['prompts'])
 		self.__is_structure_functions_definition_valid(data['functions_definition'])
-	
+		return {
+			'prompts': self.__prompts,
+			'functions_definition': self.__functions_definition
+		}
+
 	def __is_structure_prompts_valid(self, data: Any) -> None:
 		if isinstance(data, dict):
 			prompt_model = PromptSchema(prompt=data)
@@ -24,9 +32,8 @@ class JSONParser(ProcessingStage):
 		for prompt in data:
 			prompt_model = PromptSchema(prompt=prompt)
 			self.__prompts.append(prompt_model)
-	
+
 	def __is_structure_functions_definition_valid(self, data: Any) -> None:
-		print("data1111111:", data)
 		if isinstance(data, dict):
 			function_definition_model = FunctionDefinitionSchema(
 				name=data.get('name', None),
@@ -48,7 +55,6 @@ class JSONParser(ProcessingStage):
    
   
 	def __is_valid_type(self, data: Any) -> None:
-		print("SSSSSSS:", type(data['functions_definition']))
 		if not isinstance(data['functions_definition'], dict)\
   				and not isinstance(data['functions_definition'], list):
 			raise Exception("Functions_definition content must be dictionary or list.")
