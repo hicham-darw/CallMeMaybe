@@ -8,11 +8,13 @@ from src.json_manager import JSONManager
 
 from sys import exit
 
+import torch
+
 
 if __name__ == '__main__':
     
     # parser her 
-    
+	torch.set_num_threads(4)    
 	arg_parser = ArgParser()
 	arg_parser.initial_arguments()
 	json_manager = JSONManager(

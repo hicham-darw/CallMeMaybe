@@ -26,7 +26,7 @@ class JSONGenerator(ProcessingStage):
 		print("START PROMPT:::::")
 		for prompt in data['prompts']:
 			clean_prompt = f"""
-			You are a function_calling AI assistant.
+			You are a strict function_calling AI assistant.
 			your only job is to analyze the user prompt and decide if can use any
 			function from THE AVAILABLE FUNCTIONS
 
@@ -42,16 +42,23 @@ class JSONGenerator(ProcessingStage):
 				- output ONLY valid JSON. NO EXTRA TEXT, NO EXPLANATION, NO MARKDOWN.
 				- never invent functions that are not listed above
 				- extract values from the user prompt accurately
-			
+				- ONLY JSON STRUCTURE	
 			EXAMPLE OUTPUT:
+			   if match one in AVAILABLE FUNCTIONS:
 				{{
-					"prompt": "What is the sum of 2 and 3?",
-					"name": "fn_add_numbers",
+					"prompt": "<USER PROMPT HERE>",
+					"name": "<function_name>",
 					"parameters": {{"a": 2.0, "b": 3.0}}
+				}}
+			   else:
+				{{
+					"prompt": "<USER PROMPT HERE>",
+					"name": null,
+					"parameters": null,
 				}}
    			"""
 			break
 		# print(clean_prompt)
 		qwen_model = Small_LLM_Model()
-		result = qwen_model.generate(clean_prompt, max_new_tokens=512)
-		print(result)
+		result = qwen_model.generate(clean_prompt, max_new_tokens=64)
+		print(result[len(clean_prompt):])
