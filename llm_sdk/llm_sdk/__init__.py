@@ -115,8 +115,9 @@ class Small_LLM_Model:
             # Get logits for NEXT token
             # Shape: [vocab_size]
             logits = outputs.logits[:, -1, :]
-
+            
             # Apply temperature
+            # allowed tokens only input ids
             logits = logits / temperature
 
             # ----------------------------------------------------
