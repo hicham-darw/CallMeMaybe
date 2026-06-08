@@ -1,34 +1,38 @@
 from typing import Any
 from src.processing_stage import ProcessingStage
-# from llm_sdk.llm_sdk import Small_LLM_Model
 from transformers import AutoModel
 from src.validator import FunctionDefinitionSchema
 from src.state import JSONState
 from llm_sdk.llm_sdk import Small_LLM_Model
+import torch
 
 
-class JSONGenerator(ProcessingStage):
+class JSONGenerator(Small_LLM_Model, ProcessingStage):
 	"""JSONGenerator
 	"""
 	def __init__(self) -> None:
+		super().__init__()
 		self.__json_results = list()
 		self.current_state = JSONState.IN_OPEN_BRACE
 
 	def execute(self, data: Any) -> Any:
-		print("GENERATOR:")
-		for key, value in data.items():
-			print(f"key: {key}")
-			print(f"value: {value}")
-   
 		# must be load model first for tokenization
-		model = Small_LLM_Model()  # add argument of model here now use default
-		for prompt in data.get('prompts', []):
-			clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
-			input_ids = model.encode(clean_prompt).tolist()
-
-			break
-   
-   
+		print("pipeline generator:")
+		prompt = data['prompts'][0]		
+		clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
+		input_ids = self.encode(clean_prompt)
+		outputs = self._model(input_ids=input_ids)
+		logits = outputs.logits[:, -1,:]
+		probs = torch.softmax(logits, dim=-1)
+		# print("input_ids:\n")
+		# print(input_ids)
+		# print("outputs:\n")
+		# print(outputs)
+		print("logits:")
+		print(logits)
+		print("Probs:")
+		print(probs)
+		self.get_allowed_tokens(probs) # need contrained decoding with state and field
    
 	def build_clean_prompt(
     	self, functions_definition: list[FunctionDefinitionSchema], prompt: str
@@ -36,9 +40,7 @@ class JSONGenerator(ProcessingStage):
 		available_functions = ''
 		for function in functions_definition:
 			available_functions += function.model_dump_json() + '\n'
-		# print("available_functions:")
-		# print(available_functions)
-		print("START PROMPT:::::")
+
 		clean_prompt = f"""
 		You are a strict function_calling AI assistant.
 		your only job is to analyze the user prompt and decide if can use any
@@ -71,7 +73,6 @@ class JSONGenerator(ProcessingStage):
 				"parameters": null,
 			}}
 		"""
-		print("CLEAN:\n", clean_prompt)
 		return clean_prompt
 
 	def set_token_hugging_face(self) -> None:

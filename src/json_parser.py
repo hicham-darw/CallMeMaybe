@@ -11,11 +11,6 @@ class JSONParser(ProcessingStage):
 
 	# for pipeline execution
 	def execute(self, data: Any) -> Any:
-		print("PARSER:")
-		for k, v in data.items():
-			print(f"key: {k}")
-			print(f"value: {v}")
-		print("#" * 30)
 		self.__is_valid_type(data)
 		self.__is_structure_prompts_valid(data['prompts'])
 		self.__is_structure_functions_definition_valid(data['functions_definition'])
