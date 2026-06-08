@@ -120,15 +120,11 @@ class Small_LLM_Model:
             # allowed tokens only input ids
             logits = logits / temperature
 
-            # ----------------------------------------------------
             # GREEDY DECODING
-            # ----------------------------------------------------
             if top_k is None:
                 next_token = torch.argmax(logits, dim=-1)
 
-            # ----------------------------------------------------
             # TOP-K SAMPLING
-            # ----------------------------------------------------
             else:
                 values, indices = torch.topk(logits, top_k)
 

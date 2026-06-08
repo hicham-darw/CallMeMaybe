@@ -3,6 +3,7 @@ from src.processing_stage import ProcessingStage
 # from llm_sdk.llm_sdk import Small_LLM_Model
 from transformers import AutoModel
 from src.validator import FunctionDefinitionSchema
+from src.state import JSONState
 from llm_sdk.llm_sdk import Small_LLM_Model
 
 
@@ -11,8 +12,8 @@ class JSONGenerator(ProcessingStage):
 	"""
 	def __init__(self) -> None:
 		self.__json_results = list()
+		self.current_state = JSONState.IN_OPEN_BRACE
 
-	# for pipeline execution
 	def execute(self, data: Any) -> Any:
 		print("GENERATOR:")
 		for key, value in data.items():
@@ -24,8 +25,7 @@ class JSONGenerator(ProcessingStage):
 		for prompt in data.get('prompts', []):
 			clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
 			input_ids = model.encode(clean_prompt).tolist()
-			print("input ids:", input_ids)
-			print("Type input_ids:", type(input_ids))
+
 			break
    
    
