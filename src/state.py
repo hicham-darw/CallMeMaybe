@@ -11,6 +11,24 @@ class JSONState(Enum):
     IN_CLOSE_BRACE = 6
     IN_END = 7
 
+class JSONField(Enum):
+    START = 0
+    PROMPT = 1
+    NAME = 2
+    PARAMETERS = 3
+    END = 4
+
+
+ALLOWED = {
+    'IN_OPEN_BRACE': ['{'],
+    'IN_KEY': ['prompt', 'name', 'parameters'],
+    'IN_DOUBLE_POINTS': [':'],
+    'IN_VALUE': [],
+    'IN_COMMA': [','],
+    'IN_CLOSE_BRACE': ['}'],
+    'IN_END': [],
+}
+
 class FiniteStateMachine:
 
     def __init__(self) -> None:
