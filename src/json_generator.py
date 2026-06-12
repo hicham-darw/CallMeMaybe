@@ -15,7 +15,9 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		super().__init__()
 		self.__json_results = list()
 		self.current_state = JSONState.IN_START
-		# self.current_field = JSONField.START
+		self.current_field = JSONField.START
+		self.json_regex = "${\"prompt\": \"[a-z-]+\",}^"
+
 
 	def execute(self, data: Any) -> Any:
 		# must be load model first for tokenization
@@ -30,25 +32,30 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		
 		while self.current_state != JSONState.IN_END :
 			outputs = self._model(input_ids=input_ids) # (batch_size, sequence_length, config.vocab_size) score of each token in vocabulary before softmax
-			next_token_logits = outputs.logits[:, -1, :]
-			toks = []
-			allowed_tokens = self.get_allowed_tokens(self.current_state)
-			for token in allowed_tokens:
-				toks.append(self.encode(tok))
-			mask = np.full_like(next_token_logits, float("-inf"))
-			print("mask:", mask)
-			mask[:, toks] = 0 
-			print("mask:", mask)
-			print("type mask:", type(mask))
-			next_token_logits = next_token_logits + mask
-			next_token = torch.argmax(next_token_logits, dim=-1)
-			print(f"next_token: {next_token}")
-			input_ids = input_ids + next_token
-			# probabilities = torch.softmax(next_token_logits, dim=1)
-			# print("Probs:", probabilities)
+			print("outputs:", outputs)
+			print("type:", type(outputs))
 			self.current_state = JSONState.IN_END
+			continue
 
-		print("decoding:", self.decode(next_token))
+   			# next_token_logits = outputs.logits[:, -1, :]
+			# toks = []
+			# allowed_tokens = self.get_allowed_tokens(self.current_state)
+			# for token in allowed_tokens:
+			# 	toks.append(self.encode(tok))
+			# mask = np.full_like(next_token_logits, float("-inf"))
+			# print("mask:", mask)
+			# mask[:, toks] = 0 
+			# print("mask:", mask)
+			# print("type mask:", type(mask))
+			# next_token_logits = next_token_logits + mask
+			# next_token = torch.argmax(next_token_logits, dim=-1)
+			# print(f"next_token: {next_token}")
+			# input_ids = input_ids + next_token
+			# # probabilities = torch.softmax(next_token_logits, dim=1)
+			# # print("Probs:", probabilities)
+			# self.current_state = JSONState.IN_END
+
+		# print("decoding:", self.decode(next_token))
 		return None
 		# logits = outputs.logits[:, -1,:]
 		# allowed_tokens = self.get_allowed_tokens(
