@@ -29,15 +29,24 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		input_ids = self.encode(clean_prompt)
 		
 		while self.current_state != JSONState.IN_END :
-			outputs = self._model(input_ids=input_ids) # (batch_size, sequence_length, config.vocab_size) score of each token in vocabulary before softmax
-			print("outputs:", outputs)
-			print("type:", type(outputs))
-			print("outputs.logits:", outputs.logits[0].tolist())
-			print("type:", type(outputs.logits))
-			print("outputs.past_key_values:", outputs.past_key_values)
-			print("type:", type(outputs.past_key_values))
-			print("loss:", outputs.loss)
-			print("type:", type(outputs.loss))
+			logits = self._model(input_ids=input_ids).logits[:, -1, :] # (batch_size, sequence_length, config.vocab_size) score of each token in vocabulary before softmax
+			print("logits:", logits)
+			print("type:", type(logits))
+			print("*" * 60)
+
+			numpy_logits = logits.numpy()
+			probabilities = self.__softmax_function(logits.numpy())
+			print("probabilities:", probabilities)
+			print("type:", type(probabilities))
+			print("shape:", probabilities.shape)
+			print("min:", probabilities.min())
+			print("max:", probabilities.max())
+			print("sum:", probabilities.sum())
+			next_token = np.argmax(probabilities[0])
+			print("next_token:", next_token)
+			print("type:", next_token)
+
+
 			self.current_state = JSONState.IN_END
 			continue
 
@@ -70,6 +79,16 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		#  print("Probs:")
 		#  print(probs)
 		#  self.get_allowed_tokens(probs) # need contrained decoding with state and field
+
+	def __softmax_function(self, logits) -> list[float]:
+		""" apply softmax function on logits with numpy arrays 
+			and return probabilities of scores or logits as np.array 
+		"""
+		max_logits = np.max(logits)
+		exp_values = np.exp(logits - max_logits)
+		probabilities = exp_values / np.sum(exp_values)
+
+		return probabilities
 
 	def get_allowed_tokens(self, state: JSONState) -> list[str]:
 		if state == JSONState.IN_OPEN_BRACE:
