@@ -28,7 +28,7 @@ class JSONState(Enum):
     generator which token types are legal next.
     """
 
-    START = auto()
+    IN_START = auto()
 
     EXPECT_PROMPT_KEY = auto()
     EXPECT_PROMPT_COLON = auto()
@@ -47,7 +47,7 @@ class JSONState(Enum):
     EXPECT_PARAMETERS_OBJECT = auto()
 
     EXPECT_ROOT_CLOSE = auto()
-    END = auto()
+    IN_END = auto()
 
 
 class JSONField(Enum):

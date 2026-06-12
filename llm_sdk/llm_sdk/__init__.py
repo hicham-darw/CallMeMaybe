@@ -73,79 +73,79 @@ class Small_LLM_Model:
         for p in self._model.parameters():
             p.requires_grad = False
 
-    @torch.no_grad()
-    def generate(
-        self,
-        prompt: str,
-        temperature: float = 1.0,
-        top_k: int | None = 3,
-        max_new_tokens: int = 250,
-    ) -> str:
-        """
-        Generate text autoregressively from a prompt.
+    # @torch.no_grad()
+    # def generate(
+    #     self,
+    #     prompt: str,
+    #     temperature: float = 1.0,
+    #     top_k: int | None = 3,
+    #     max_new_tokens: int = 250,
+    # ) -> str:
+    #     """
+    #     Generate text autoregressively from a prompt.
 
-        Parameters
-        ----------
-        prompt : str
-            Input prompt.
-        temperature : float
-            Controls randomness.
-            - lower = more deterministic
-            - higher = more creative
-        top_k : int | None
-            Sample only from top-k most likely tokens.
-            If None -> greedy decoding.
-        max_new_tokens : int
-            Safety limit to avoid infinite generation.
+    #     Parameters
+    #     ----------
+    #     prompt : str
+    #         Input prompt.
+    #     temperature : float
+    #         Controls randomness.
+    #         - lower = more deterministic
+    #         - higher = more creative
+    #     top_k : int | None
+    #         Sample only from top-k most likely tokens.
+    #         If None -> greedy decoding.
+    #     max_new_tokens : int
+    #         Safety limit to avoid infinite generation.
 
-        Returns
-        -------
-        str
-            Generated text.
-        """
+    #     Returns
+    #     -------
+    #     str
+    #         Generated text.
+    #     """
 
-        # Encode prompt -> tensor shape: [1, seq_len]
-        input_ids = self.encode(prompt)
+    #     # Encode prompt -> tensor shape: [1, seq_len]
+    #     input_ids = self.encode(prompt)
 
-        # Generation loop
-        for _ in range(max_new_tokens):
+    #     # Generation loop
+    #     for _ in range(max_new_tokens):
 
-            # Forward pass
-            outputs = self._model(input_ids=input_ids)
-            # Get logits for NEXT token
-            # Shape: [vocab_size]
-            logits = outputs.logits[:, -1, :]
+    #         # Forward pass
+    #         outputs = self._model(input_ids=input_ids)
+    #         # Get logits for NEXT token
+    #         # Shape: [vocab_size]
+    #         logits = outputs.logits[:, -1, :]
             
-            # Apply temperature
-            # allowed tokens only input ids
-            logits = logits / temperature
+    #         # Apply temperature
+    #         # allowed tokens only input ids
+    #         logits = logits / temperature
 
-            # GREEDY DECODING
-            if top_k is None:
-                next_token = torch.argmax(logits, dim=-1)
+    #         # GREEDY DECODING
+    #         if top_k is None:
+    #             next_token = torch.argmax(logits, dim=-1)
 
-            # TOP-K SAMPLING
-            else:
-                values, indices = torch.topk(logits, top_k)
+    #         # TOP-K SAMPLING
+    #         else:
+    #             values, indices = torch.topk(logits, top_k)
 
-                probs = torch.softmax(values, dim=-1)
+    #             probs = torch.softmax(values, dim=-1)
 
-                sampled_index = torch.multinomial(probs, num_samples=1)
+    #             sampled_index = torch.multinomial(probs, num_samples=1)
 
-                next_token = indices.gather(-1, sampled_index)
+    #             next_token = indices.gather(-1, sampled_index)
 
-            # Append token to sequence
-            input_ids = torch.cat(
-                [input_ids, next_token],
-                dim=1
-            )
+    #         # Append token to sequence
+    #         input_ids = torch.cat(
+    #             [input_ids, next_token],
+    #             dim=1
+    #         )
 
-            # Stop if EOS token generated
-            if next_token.item() == self._tokenizer.eos_token_id:
-                break
+    #         # Stop if EOS token generated
+    #         if next_token.item() == self._tokenizer.eos_token_id:
+    #             break
 
-        # Decode full sequence
-        return self.decode(input_ids[0])
+    #     # Decode full sequence
+    #     return self.decode(input_ids[0])
 
     def encode(self, text: str) -> torch.Tensor:
         """Tokenise *text* and return a 2-D ``input_ids`` tensor on the target device."""

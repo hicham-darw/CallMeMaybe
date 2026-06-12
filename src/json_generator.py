@@ -15,8 +15,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		super().__init__()
 		self.__json_results = list()
 		self.current_state = JSONState.IN_START
-		self.current_field = JSONField.START
-		self.json_regex = "${\"prompt\": \"[a-z-]+\",}^"
 
 
 	def execute(self, data: Any) -> Any:
@@ -34,6 +32,12 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			outputs = self._model(input_ids=input_ids) # (batch_size, sequence_length, config.vocab_size) score of each token in vocabulary before softmax
 			print("outputs:", outputs)
 			print("type:", type(outputs))
+			print("outputs.logits:", outputs.logits[0].tolist())
+			print("type:", type(outputs.logits))
+			print("outputs.past_key_values:", outputs.past_key_values)
+			print("type:", type(outputs.past_key_values))
+			print("loss:", outputs.loss)
+			print("type:", type(outputs.loss))
 			self.current_state = JSONState.IN_END
 			continue
 
