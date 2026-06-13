@@ -19,72 +19,27 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 
 	def execute(self, data: Any) -> Any:
-		# must be load model first for tokenization
 		print("pipeline generator:")
 		self.__allowed_functions_name: list[str] = [
 			function.name for function in data['functions_definition']
 		]
+		self.__allowed_functions_name.append("null")
 
 		prompt = data['prompts'][0]		
 		clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
-		input_ids = self.encode(clean_prompt)
-		
+		input_ids_as_list = self.encode(clean_prompt).tolist()
+
 		while self.current_state != JSONState.IN_END :
-			logits = self._model(input_ids=input_ids).logits[:, -1, :] # (batch_size, sequence_length, config.vocab_size) score of each token in vocabulary before softmax
+			logits = self.get_logits_from_input_ids(input_ids_as_list)
 			print("logits:", logits)
-			print("type:", type(logits))
-			print("*" * 60)
+			break
 
-			numpy_logits = logits.numpy()
-			probabilities = self.__softmax_function(logits.numpy())
-			print("probabilities:", probabilities)
-			print("type:", type(probabilities))
-			print("shape:", probabilities.shape)
-			print("min:", probabilities.min())
-			print("max:", probabilities.max())
-			print("sum:", probabilities.sum())
-			next_token = np.argmax(probabilities[0])
-			print("next_token:", next_token)
-			print("type:", next_token)
-			path_to_vocab_file = self.get_path_to_vocab_file()
-			with open(path_to_vocab_file, "r") as f:
-				json_vocab = json.load(f)
-			print("type json_vocab:", type(json_vocab))
-			print("@" * 40)
-			print("len vocab:", len(json_vocab))
-			for token_string, token_id in json_vocab.items():
-				if token_id == next_token:
-					print("token_str predicted:", token_string)
-					break
-			# tensor_next_token = torch.tensor([next_token])
-			# input_ids = torch.cat((input_ids, tensor_next_token), dim=1)
+			# numpy_logits = logits.numpy()
+			# probabilities = self.__softmax_function(logits.numpy())
 
-			# print("decode: ", self.decode([next_token]))
-			i = 0
-			if i == 2:
-				self.current_state = JSONState.IN_END
-			i += 1
-			continue
-
-   			# next_token_logits = outputs.logits[:, -1, :]
-			# toks = []
-			# allowed_tokens = self.get_allowed_tokens(self.current_state)
-			# for token in allowed_tokens:
-			# 	toks.append(self.encode(tok))
-			# mask = np.full_like(next_token_logits, float("-inf"))
-			# print("mask:", mask)
-			# mask[:, toks] = 0 
-			# print("mask:", mask)
-			# print("type mask:", type(mask))
-			# next_token_logits = next_token_logits + mask
-			# next_token = torch.argmax(next_token_logits, dim=-1)
-			# print(f"next_token: {next_token}")
-			# input_ids = input_ids + next_token
-			# # probabilities = torch.softmax(next_token_logits, dim=1)
-			# # print("Probs:", probabilities)
 			# self.current_state = JSONState.IN_END
-
-		# print("decoding:", self.decode(next_token))
+			# i += 1
+			# continue
 		return None
 
 	def __softmax_function(self, logits) -> list[float]:
@@ -96,26 +51,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		probabilities = exp_values / np.sum(exp_values)
 
 		return probabilities
-
-	def get_allowed_tokens(self, state: JSONState) -> list[str]:
-		if state == JSONState.IN_OPEN_BRACE:
-			return ['{']
-		elif state == JSONState.IN_KEY:
-			return ["\"prompt\"", "\"name\"", "\"parameters\""]
-		elif state == JSONState.IN_DOUBLE_POINTS:
-			return [':']
-		elif state == JSONState.IN_VALUE:
-			return []
-		elif state == JSONState.IN_COMMA:
-			return [","]
-		elif state == JSONState.IN_CLOSE_BRACE:
-			return ["}"]
-		else:
-			return []
-	
-	#  outputs.past_key_values: cached attention from previous tokens
-	# def get_allowed_tokens(self, state: JSONState, field: JSONField) -> list[str]:
-	# 	return ALLOWED[state.name]
 
 	def build_clean_prompt(
     	self, functions_definition: list[FunctionDefinitionSchema], prompt: str
