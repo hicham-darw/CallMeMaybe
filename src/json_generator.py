@@ -4,8 +4,9 @@ from transformers import AutoModel
 from src.validator import FunctionDefinitionSchema
 from src.state import JSONState
 from llm_sdk.llm_sdk import Small_LLM_Model
-import torch
 import numpy as np
+import json
+import torch
 
 
 class JSONGenerator(Small_LLM_Model, ProcessingStage):
@@ -45,9 +46,24 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			next_token = np.argmax(probabilities[0])
 			print("next_token:", next_token)
 			print("type:", next_token)
+			path_to_vocab_file = self.get_path_to_vocab_file()
+			with open(path_to_vocab_file, "r") as f:
+				json_vocab = json.load(f)
+			print("type json_vocab:", type(json_vocab))
+			print("@" * 40)
+			print("len vocab:", len(json_vocab))
+			for token_string, token_id in json_vocab.items():
+				if token_id == next_token:
+					print("token_str predicted:", token_string)
+					break
+			# tensor_next_token = torch.tensor([next_token])
+			# input_ids = torch.cat((input_ids, tensor_next_token), dim=1)
 
-
-			self.current_state = JSONState.IN_END
+			# print("decode: ", self.decode([next_token]))
+			i = 0
+			if i == 2:
+				self.current_state = JSONState.IN_END
+			i += 1
 			continue
 
    			# next_token_logits = outputs.logits[:, -1, :]
@@ -70,15 +86,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		# print("decoding:", self.decode(next_token))
 		return None
-		# logits = outputs.logits[:, -1,:]
-		# allowed_tokens = self.get_allowed_tokens(
-      	# 	self.current_state,
-        # 	self.current_field,
-        # )
-		#  probs = torch.softmax(logits, dim=-1)
-		#  print("Probs:")
-		#  print(probs)
-		#  self.get_allowed_tokens(probs) # need contrained decoding with state and field
 
 	def __softmax_function(self, logits) -> list[float]:
 		""" apply softmax function on logits with numpy arrays 
