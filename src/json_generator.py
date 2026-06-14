@@ -17,21 +17,56 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__json_results = list()
 		self.current_state = JSONState.IN_START
 
+	def load_model_vocabulary(self) -> None:
+		path_to_vocabulary = self.get_path_to_vocab_file()
+		with open(path_to_vocabulary) as file:
+			self.__vocabulary = json.load(file)
+
+	def get_allowed_tokens(self) -> list[str]:
+		if self.current_state == JSONState.IN_START:
+			return ['{']
+		return []
+
+	def get_allowed_logits(self, logits) -> list[int]:
+
+		allowed_strs = self.get_allowed_tokens()
+		# ['{'] or None
+		masked_logits = np.array(["inf"] * len(logits)) 
+		for token_str in allowed_strs:
+			token_id = self.encode(token_str).tolist()[0][0]
+			print("token_id HERE!!!:", token_id)
+			masked_logits[token_id] = logits[token_id]
+		return list(masked_logits)
 
 	def execute(self, data: Any) -> Any:
+
+		self.load_model_vocabulary()
+
 		print("pipeline generator:")
-		self.__allowed_functions_name: list[str] = [
+		self.__functions_definition_name: list[str] = [
 			function.name for function in data['functions_definition']
 		]
-		self.__allowed_functions_name.append("null")
+		self.__functions_definition_name.append("null")
 
-		prompt = data['prompts'][0]		
+		prompt = data['prompts'][0]
 		clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
 		input_ids_as_list = self.encode(clean_prompt).tolist()
 
 		while self.current_state != JSONState.IN_END :
-			logits = self.get_logits_from_input_ids(input_ids_as_list)
-			print("logits:", logits)
+			logits = self.get_logits_from_input_ids(input_ids_as_list[0])
+			allowed_strs = self.get_allowed_tokens()
+   			# ['{'] or None
+			masked_logits = self.get_allowed_logits(logits)
+			print("MASKED:")
+			print(masked_logits)
+			print("*" * 40)
+			max_token = np.argmax(masked_logits).tolist()
+			print("input_ids before:", input_ids_as_list)
+			input_ids_as_list[0].append(max_token)
+			print("input_ids after:", input_ids_as_list)
+			print("*" * 60)
+			print(self.__vocabulary['{'])
+
 			break
 
 			# numpy_logits = logits.numpy()
