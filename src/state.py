@@ -30,23 +30,21 @@ class JSONState(Enum):
 
     IN_START = auto()
 
-    EXPECT_PROMPT_KEY = auto()
-    EXPECT_PROMPT_COLON = auto()
-    EXPECT_PROMPT_VALUE = auto()
+    IN_PROMPT_KEY = auto()
+    IN_PROMPT_COLON = auto()
+    IN_PROMPT_VALUE = auto()
 
-    EXPECT_COMMA_AFTER_PROMPT = auto()
+    IN_COMMA_AFTER_PROMPT = auto()
 
-    EXPECT_NAME_KEY = auto()
-    EXPECT_NAME_COLON = auto()
-    EXPECT_NAME_VALUE = auto()
+    IN_NAME_KEY = auto()
+    IN_NAME_COLON = auto()
+    IN_NAME_VALUE = auto()
 
-    EXPECT_COMMA_AFTER_NAME = auto()
+    IN_COMMA_AFTER_NAME = auto()
 
-    EXPECT_PARAMETERS_KEY = auto()
-    EXPECT_PARAMETERS_COLON = auto()
-    EXPECT_PARAMETERS_OBJECT = auto()
-
-    EXPECT_ROOT_CLOSE = auto()
+    IN_PARAMETERS_KEY = auto()
+    IN_PARAMETERS_COLON = auto()
+    IN_PARAMETERS_VALUE = auto()
     IN_END = auto()
 
 
