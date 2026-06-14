@@ -31,12 +31,13 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		allowed_strs = self.get_allowed_tokens()
 		# ['{'] or None
-		masked_logits = np.array(["inf"] * len(logits)) 
+		masked_logits = ["-inf"] * len(logits)
 		for token_str in allowed_strs:
 			token_id = self.encode(token_str).tolist()[0][0]
-			print("token_id HERE!!!:", token_id)
-			masked_logits[token_id] = logits[token_id]
-		return list(masked_logits)
+			print("token_id:", token_id)
+			# print("token_id HERE!!!:", token_id)
+			masked_logits[token_id] = self.__vocabulary[token_str]
+		return masked_logits
 
 	def execute(self, data: Any) -> Any:
 
@@ -51,30 +52,23 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		prompt = data['prompts'][0]
 		clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
 		input_ids_as_list = self.encode(clean_prompt).tolist()
+		self.__start_json = len(input_ids_as_list[0])
 
-		while self.current_state != JSONState.IN_END :
+		while self.current_state != JSONState.IN_END:
 			logits = self.get_logits_from_input_ids(input_ids_as_list[0])
-			allowed_strs = self.get_allowed_tokens()
-   			# ['{'] or None
+
 			masked_logits = self.get_allowed_logits(logits)
-			print("MASKED:")
-			print(masked_logits)
-			print("*" * 40)
-			max_token = np.argmax(masked_logits).tolist()
+
+			max_token = np.argmax(masked_logits)
+			print("max_token:", max_token)
 			print("input_ids before:", input_ids_as_list)
-			input_ids_as_list[0].append(max_token)
+			input_ids_as_list[0].append(int(max_token))
 			print("input_ids after:", input_ids_as_list)
 			print("*" * 60)
-			print(self.__vocabulary['{'])
-
+			print(self.__vocabulary['{'], ": ", end='')
+			print("this max_token by argmax:", self.decode(int(max_token)))
 			break
-
-			# numpy_logits = logits.numpy()
-			# probabilities = self.__softmax_function(logits.numpy())
-
-			# self.current_state = JSONState.IN_END
-			# i += 1
-			# continue
+		
 		return None
 
 	def __softmax_function(self, logits) -> list[float]:
