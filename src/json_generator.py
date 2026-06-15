@@ -24,31 +24,53 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 	def get_allowed_tokens(self) -> list[str]:
 		if self.current_state == JSONState.IN_START:
-			return '{'
+			return ['{']
 		if self.current_state == JSONState.IN_PROMPT_KEY:
-			return "\"prompt\""
-		return []
+			return ["\"prompt\""]
+		if self.current_state == JSONState.IN_PROMPT_COLON:
+			return [':']
+		if self.current_state == JSONState.IN_PROMPT_VALUE:
+			return [self.current_prompt]
+		if self.current_state == JSONState.IN_COMMA_AFTER_PROMPT:
+			return [","]
+		if self.current_state == JSONState.IN_NAME_KEY:
+			return ["\"name\""]
+		if self.current_state == JSONState.IN_NAME_COLON:
+			return [":"]
+		if self.current_state == JSONState.IN_NAME_VALUE:
+			return self.__functions_definition_name
+		if self.current_state == JSONState.IN_COMMA_AFTER_NAME:
+			return [","]
+		if self.current_state == JSONState.IN_PARAMETERS_KEY:
+			return["\"parameters\""]
+		if self.current_state == JSONState.IN_PARAMETERS_COLON:
+			return [":"]
+		if self.current_state == JSONState.IN_PARAMETERS_VALUE:
+			return []
+		if self.current_state == JSONState.IN_CLOSE_BRACE:
+			return ['}']
+		
+		
 
-	def get_allowed_logits(self, logits) -> list[int]:
+	def get_allowed_logits(self, logits, generated_str: str, target: str) -> list[int]:
 
-		token_str = self.get_allowed_tokens()
-		# ['{'] or None
-		masked_logits = ["-inf"] * len(logits)
-		completed_token = ''
-		for k, v in self.__vocabulary.items():
-			if (completed_token + token_str).startswith(k):
-				print(f"token_str: {k} {v}")
-				#  find how to put logits with correctly
-				masked_logits[v] = self.__vocabulary[k]
-
-			if token_str == k:
-				break
+		masked_logits = np.full_like(logits, -np.inf)
+		for item in target:
+			for k, v in self.__vocabulary.items():
+				# print(f"decode [v]: {generated_str + self.decode([v])}")
+				if item.startswith((generated_str + self.decode([v]))):
+					print(f"token_str: {generated_str + k} {v} v here ===> {v}")
+					#  find how to put logits with correctly
+					masked_logits[v] = logits[v]
+				# if generated_str + self.decode([v]) == target:
+				# 	break
 		return masked_logits
 
 	def execute(self, data: Any) -> Any:
 
 		self.load_model_vocabulary()
-
+		self.__swapped_vocabulary = {v: k for k,v in self.__vocabulary.items()}
+		
 		print("pipeline generator:")
 		self.__functions_definition_name: list[str] = [
 			function.name for function in data['functions_definition']
@@ -56,25 +78,30 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__functions_definition_name.append("null")
 
 		prompt = data['prompts'][0]
+		self.current_prompt = prompt.prompt['prompt']
 		clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
 		input_ids_as_list = self.encode(clean_prompt).tolist()[0]
 		self.__start_json = len(input_ids_as_list)
-
-		while self.current_state != JSONState.IN_PROMPT_COLON:
+		generated_str = ''
+		while self.current_state != JSONState.IN_PARAMETERS_VALUE:
 			logits = self.get_logits_from_input_ids(input_ids_as_list)
-			masked_logits = self.get_allowed_logits(logits)
-			max_token = np.argmax(masked_logits)
-
-			print("max_token:", max_token)
-			print("input_ids before:", input_ids_as_list)
-			input_ids_as_list.append(int(max_token))
-			print("input_ids after:", input_ids_as_list)
+			masked_logits = self.get_allowed_logits(logits, generated_str, self.get_allowed_tokens())
+			index_max_logit = np.argmax(masked_logits)
+			generated_str += self.__swapped_vocabulary[int(index_max_logit)]
+			# print("input_ids before:", input_ids_as_list)
+			input_ids_as_list.append(index_max_logit)
+			# print("input_ids after:", input_ids_as_list)
 			print("*" * 60)
-			# print(self.__vocabulary['{'], ": ", end='')
-			self.goto_next_state()
-			
-			print("this max_token by argmax:|", self.decode(int(max_token)), "|", end="")
-			print()
+
+			print(f"generated_str now: {generated_str}")
+			print(f"allowed_tokens: {self.get_allowed_tokens()}")
+			if generated_str in self.get_allowed_tokens(): 
+				print("The end token.generated str: {generated_str}")
+				self.goto_next_state()
+				generated_str = ''
+			print("self.__current_state:", self.current_state)
+			# print("this max_token by argmax:|", self.decode(int(max_token)), "|", end="")
+			# print()
 		
 		return None
 

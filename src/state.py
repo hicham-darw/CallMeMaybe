@@ -29,7 +29,6 @@ class JSONState(Enum):
     """
 
     IN_START = auto()
-
     IN_PROMPT_KEY = auto()
     IN_PROMPT_COLON = auto()
     IN_PROMPT_VALUE = auto()
@@ -45,6 +44,8 @@ class JSONState(Enum):
     IN_PARAMETERS_KEY = auto()
     IN_PARAMETERS_COLON = auto()
     IN_PARAMETERS_VALUE = auto()
+
+    IN_CLOSE_BRACE = auto()
     IN_END = auto()
 
 
