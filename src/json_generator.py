@@ -46,14 +46,23 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		if self.current_state == JSONState.IN_PARAMETERS_COLON:
 			return [":"]
 		if self.current_state == JSONState.IN_PARAMETERS_VALUE:
+			parameters = self.get_parameters_as_str()
+			print("parameters:", parameters)
+			print("type parameters:", type(parameters))
 			return []
 		if self.current_state == JSONState.IN_CLOSE_BRACE:
 			return ['}']
 		
-		
+	def get_parameters_as_str(self) -> dict[str, str]:
+		for function_definition in self.__functions_definition:
+			if function_definition.name == self.current_function_call:
+				return function_definition.parameters
+		return {}
 
-	def get_allowed_logits(self, logits, generated_str: str, target: str) -> list[int]:
+	def get_allowed_logits(self, logits, generated_str: str, target: list[str]) -> list[int]:
 
+		if not target:
+			return logits
 		masked_logits = np.full_like(logits, -np.inf)
 		for item in target:
 			for k, v in self.__vocabulary.items():
@@ -70,7 +79,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		self.load_model_vocabulary()
 		self.__swapped_vocabulary = {v: k for k,v in self.__vocabulary.items()}
-		
+		self.__functions_definition = data['functions_definition']
 		print("pipeline generator:")
 		self.__functions_definition_name: list[str] = [
 			function.name for function in data['functions_definition']
@@ -83,20 +92,30 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		input_ids_as_list = self.encode(clean_prompt).tolist()[0]
 		self.__start_json = len(input_ids_as_list)
 		generated_str = ''
-		while self.current_state != JSONState.IN_PARAMETERS_VALUE:
+		while self.current_state != JSONState.IN_END:
 			logits = self.get_logits_from_input_ids(input_ids_as_list)
 			masked_logits = self.get_allowed_logits(logits, generated_str, self.get_allowed_tokens())
 			index_max_logit = np.argmax(masked_logits)
-			generated_str += self.__swapped_vocabulary[int(index_max_logit)]
+			# print("index: {index_max_logit}, ")
+			generated_str += self.decode([int(index_max_logit)])
 			# print("input_ids before:", input_ids_as_list)
 			input_ids_as_list.append(index_max_logit)
 			# print("input_ids after:", input_ids_as_list)
 			print("*" * 60)
 
-			print(f"generated_str now: {generated_str}")
+			print(f"generated_str now: |{generated_str}|")
 			print(f"allowed_tokens: {self.get_allowed_tokens()}")
-			if generated_str in self.get_allowed_tokens(): 
-				print("The end token.generated str: {generated_str}")
+			if self.current_state == JSONState.IN_PARAMETERS_VALUE:
+				print("$" *  70)
+				print('is_closed:', self.is_closed_json(generated_str))
+				print("$" *  70)
+			if self.current_state == JSONState.IN_PARAMETERS_VALUE\
+					and self.is_closed_json(generated_str):
+				self.goto_next_state()
+			elif generated_str in self.get_allowed_tokens(): 
+				print(f"The end token.generated str: {generated_str}")
+				if generated_str in self.__functions_definition_name:
+					self.current_function_call = generated_str
 				self.goto_next_state()
 				generated_str = ''
 			print("self.__current_state:", self.current_state)
@@ -104,6 +123,12 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			# print()
 		
 		return None
+	
+	def is_closed_json(self, json_str: str) -> bool:
+		json_str = json_str.strip()
+		if json_str[0] == '{' and json_str[-1] == '}':
+			return True
+		return False
 
 	def goto_next_state(self) -> None:
 		if self.current_state == JSONState.IN_START:
@@ -118,7 +143,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			self.current_state = JSONState.IN_NAME_KEY
 		elif self.current_state == JSONState.IN_NAME_KEY:
 			self.current_state = JSONState.IN_NAME_COLON
-		elif slef.current_state == JSONState.IN_NAME_COLON:
+		elif self.current_state == JSONState.IN_NAME_COLON:
 			self.current_state = JSONState.IN_NAME_VALUE
 		elif self.current_state == JSONState.IN_NAME_VALUE:
 			self.current_state = JSONState.IN_COMMA_AFTER_NAME
