@@ -68,11 +68,12 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			for k, v in self.__vocabulary.items():
 				# print(f"decode [v]: {generated_str + self.decode([v])}")
 				if item.startswith((generated_str + self.decode([v]))):
-					print(f"token_str: {generated_str + k} {v} v here ===> {v}")
+					# print(f"token_str: {generated_str + k} {v} v here ===> {v}")
 					#  find how to put logits with correctly
 					masked_logits[v] = logits[v]
-				# if generated_str + self.decode([v]) == target:
-				# 	break
+# maybe line under me
+				if generated_str + self.decode([v]) == target:
+					break
 		return masked_logits
 
 	def execute(self, data: Any) -> Any:
@@ -80,48 +81,50 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.load_model_vocabulary()
 		self.__swapped_vocabulary = {v: k for k,v in self.__vocabulary.items()}
 		self.__functions_definition = data['functions_definition']
-		print("pipeline generator:")
-		self.__functions_definition_name: list[str] = [
-			function.name for function in data['functions_definition']
-		]
-		self.__functions_definition_name.append("null")
-
-		prompt = data['prompts'][0]
-		self.current_prompt = prompt.prompt['prompt']
-		clean_prompt = self.build_clean_prompt(data['functions_definition'], prompt)
-		input_ids_as_list = self.encode(clean_prompt).tolist()[0]
-		self.__start_json = len(input_ids_as_list)
-		generated_str = ''
-		while self.current_state != JSONState.IN_END:
-			logits = self.get_logits_from_input_ids(input_ids_as_list)
-			masked_logits = self.get_allowed_logits(logits, generated_str, self.get_allowed_tokens())
-			index_max_logit = np.argmax(masked_logits)
-			# print("index: {index_max_logit}, ")
-			generated_str += self.decode([int(index_max_logit)])
-			# print("input_ids before:", input_ids_as_list)
-			input_ids_as_list.append(index_max_logit)
-			# print("input_ids after:", input_ids_as_list)
-			print("*" * 60)
-
-			print(f"generated_str now: |{generated_str}|")
-			print(f"allowed_tokens: {self.get_allowed_tokens()}")
-			if self.current_state == JSONState.IN_PARAMETERS_VALUE:
-				print("$" *  70)
-				print('is_closed:', self.is_closed_json(generated_str))
-				print("$" *  70)
-			if self.current_state == JSONState.IN_PARAMETERS_VALUE\
-					and self.is_closed_json(generated_str):
-				self.goto_next_state()
-			elif generated_str in self.get_allowed_tokens(): 
-				print(f"The end token.generated str: {generated_str}")
-				if generated_str in self.__functions_definition_name:
-					self.current_function_call = generated_str
-				self.goto_next_state()
-				generated_str = ''
-			print("self.__current_state:", self.current_state)
-			# print("this max_token by argmax:|", self.decode(int(max_token)), "|", end="")
-			# print()
+		self.__prompts = data['prompts']
 		
+		self.__functions_definition_name: list[str] = list(map(lambda s: "\"" + s.name + "\"" , self.__functions_definition))
+		self.__functions_definition_name.append("'null'")
+
+		print("pipeline generator:")
+		
+		for prompt_schema in self.__prompts:
+			json_result = ''
+			generated_str = ''
+
+			self.current_prompt = "\"" + prompt_schema.prompt['prompt'] + "\""
+			clean_prompt = self.build_clean_prompt()
+
+			input_ids_as_list = self.encode(clean_prompt).tolist()[0]
+			self.__start_json = len(input_ids_as_list)
+
+			while self.current_state != JSONState.IN_END:
+
+				logits = self.get_logits_from_input_ids(input_ids_as_list)
+				masked_logits = self.get_allowed_logits(logits, generated_str, self.get_allowed_tokens())
+				index_max_logit = np.argmax(masked_logits)
+
+				generated_str += self.decode([int(index_max_logit)])
+				input_ids_as_list.append(index_max_logit)
+
+				if self.current_state == JSONState.IN_PARAMETERS_VALUE\
+						and self.is_closed_json(generated_str):
+					print(f"The end state generated str: {generated_str}")
+					self.goto_next_state()
+					json_result += generated_str
+				elif generated_str in self.get_allowed_tokens(): 
+					print(f"The end token.generated str: {generated_str}")
+					if generated_str in self.__functions_definition_name:
+						self.current_function_call = generated_str.strip('"')
+
+					self.goto_next_state()
+					json_result += generated_str
+					generated_str = ''
+				print("self.__current_state:", self.current_state)
+			self.__json_results.append(json_result)
+			self.current_state = JSONState.IN_START
+
+			print("json_result: ==>", json_result)		
 		return None
 	
 	def is_closed_json(self, json_str: str) -> bool:
@@ -168,11 +171,9 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 	# 	return probabilities
 
-	def build_clean_prompt(
-    	self, functions_definition: list[FunctionDefinitionSchema], prompt: str
-    ) -> Any:
+	def build_clean_prompt(self) -> str:
 		available_functions = ''
-		for function in functions_definition:
+		for function in self.__functions_definition:
 			available_functions += function.model_dump_json() + '\n'
 
 		clean_prompt = f"""
@@ -184,7 +185,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			{available_functions}
 
 		USER PROMPT:
-			{prompt}
+			{self.current_prompt}
     		
 		INSTRUCTIONS:
 			choose one matching function
