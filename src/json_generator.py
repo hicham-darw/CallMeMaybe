@@ -42,7 +42,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		if self.__fsm.get_state() == JSONState.IN_NAME_COLON:
 			return [":"]
 		if self.__fsm.get_state() == JSONState.IN_NAME_VALUE:
-			return self.__functions_definition_name
+			return self.__function_names
 		if self.__fsm.get_state() == JSONState.IN_COMMA_AFTER_NAME:
 			return [","]
 		if self.__fsm.get_state() == JSONState.IN_PARAMETERS_KEY:
@@ -71,18 +71,26 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 					break
 		return masked_logits
 
-	def execute(self, data: Any) -> Any:
+	def __prepare_function_names(self) -> None:
+		self.__function_names: list[int] = list(
+			map(lambda func: "\"" + func.name  + "\"", self.__functions_definition)
+		)
+		self.__function_names.append("\"null\"")
 
+	def __prepare_data(self, data: Any) -> None:
+		
 		self.load_model_vocabulary()
-		self.__swapped_vocabulary = {v: k for k,v in self.__vocabulary.items()}
+		self.__swapped_vocabulary = {_id: token for token, _id in self.__vocabulary.items()}
 		self.__functions_definition = data['functions_definition']
 		self.__prompts = data['prompts']
-		
-		self.__functions_definition_name: list[str] = list(map(lambda s: "\"" + s.name + "\"" , self.__functions_definition))
-		self.__functions_definition_name.append("'null'")
+		self.__prepare_function_names()
+		self.__prompt_builder.set_available_functions(self.__functions_definition)
+
+	def execute(self, data: Any) -> Any:
+
+		self.__prepare_data(data)
 
 		# for PromptBuilder object.
-		self.__prompt_builder.set_available_functions(self.__functions_definition)
 		print("pipeline generator:")
 		
 		for prompt_schema in self.__prompts:
@@ -110,57 +118,13 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 					self.__fsm.goto_next_state()
 					json_result += generated_str
 				elif generated_str in self.get_allowed_tokens(): 
-					print(f"The end token.generated str: {generated_str}")
-					print("THIS 2")
-					if generated_str in self.__functions_definition_name:
-						self.current_function_call = generated_str.strip('"')
-					print("STATE:", self.__fsm.get_state())
+					# if generated_str in self.__function_names:
+					# 	self.current_function_call = generated_str.strip('"')
 					self.__fsm.goto_next_state()
-					print("STATE:", self.__fsm.get_state())
 					json_result += generated_str
 					generated_str = ''
-				print("self.__current_state:", self.__fsm.get_state())
 			self.__json_results.append(json_result)
 			self.current_state = JSONState.IN_START
 
 			print("json_result: ==>", json_result)		
 		return None
-			
-	# def build_clean_prompt(self) -> str:
-	# 	available_functions = ''
-	# 	for function in self.__functions_definition:
-	# 		available_functions += function.model_dump_json() + '\n'
-
-	# 	clean_prompt = f"""
-	# 	You are a strict function_calling AI assistant.
-	# 	your only job is to analyze the user prompt and decide if can use any
-	# 	function from THE AVAILABLE FUNCTIONS
-
-	# 	AVAILABLE FUNCTIONS:
-	# 		{available_functions}
-
-	# 	USER PROMPT:
-	# 		{self.current_prompt}
-    		
-	# 	INSTRUCTIONS:
-	# 		choose one matching function
-	# 	RULES:
-	# 		- output ONLY valid JSON. NO EXTRA TEXT, NO EXPLANATION, NO MARKDOWN.
-	# 		- never invent functions that are not listed above
-	# 		- extract values from the user prompt accurately
-	# 		- ONLY JSON STRUCTURE	
-	# 	EXAMPLE OUTPUT:
-	# 	   if match one in AVAILABLE FUNCTIONS:
-	# 		{{
-	# 			"prompt": "<USER PROMPT HERE>",
-	# 			"name": "<function_name>",
-	# 			"parameters": {{"a": 2.0, "b": 3.0}}
-	# 		}}
-	# 	   else:
-	# 		{{
-	# 			"prompt": "<USER PROMPT HERE>",
-	# 			"name": null,
-	# 			"parameters": null,
-	# 		}}
-	# 	"""
-	# 	return clean_prompt
