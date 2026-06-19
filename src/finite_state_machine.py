@@ -1,17 +1,22 @@
-from src.state import JSONState
+from src.state import JSONState, JSONStatic
 
 
 class FiniteStateMachine:
     
     def __init__(self) -> None:
-        self.__state = JSONState.IN_START
+        self.__state = JSONState.IN_NAME
+        self.__static_json = JSONStatic.STR_BEFORE_NAME
 
-    def get_state(self) -> None:
+    def get_static_json(self) -> str:
+        return self.__static_json.value
+
+    def get_state(self) -> JSONState:
         return self.__state
     
     def set_state(self, new_state: JSONState) -> None:
         self.__state = new_state
 
+    
     def is_in_end_state(self) -> bool:
         if self.__state == JSONState.IN_END:
             return True
@@ -29,39 +34,26 @@ class FiniteStateMachine:
             return True
         return False
 
+    def is_in_static_state(self) -> bool:
+        if self.__state == JSONState.BEFORE_PARAMETERS:
+            return True
+        return False
+        
+
     def goto_next_state(self) -> None:
-        if self.get_state() == JSONState.IN_START:
-            self.set_state(JSONState.IN_PROMPT_KEY)
-        
-        elif self.get_state() == JSONState.IN_PROMPT_KEY:
-        	self.set_state(JSONState.IN_PROMPT_COLON)
-        
-        elif self.get_state() == JSONState.IN_PROMPT_COLON:
-        	self.set_state(JSONState.IN_PROMPT_VALUE)
-        
-        elif self.get_state() == JSONState.IN_PROMPT_VALUE:
-        	self.set_state(JSONState.IN_COMMA_AFTER_PROMPT)
-        
-        elif self.get_state() == JSONState.IN_COMMA_AFTER_PROMPT:
-        	self.set_state(JSONState.IN_NAME_KEY)
-        
-        elif self.get_state() == JSONState.IN_NAME_KEY:
-        	self.set_state(JSONState.IN_NAME_COLON)
-        
-        elif self.get_state() == JSONState.IN_NAME_COLON:
-        	self.set_state(JSONState.IN_NAME_VALUE)
-        
-        elif self.get_state() == JSONState.IN_NAME_VALUE:
-        	self.set_state(JSONState.IN_COMMA_AFTER_NAME)
-        
-        elif self.get_state() == JSONState.IN_COMMA_AFTER_NAME:
-        	self.set_state(JSONState.IN_PARAMETERS_KEY)
-        
-        elif self.get_state() == JSONState.IN_PARAMETERS_KEY:
-        	self.set_state(JSONState.IN_PARAMETERS_COLON)
-        
-        elif self.get_state() == JSONState.IN_PARAMETERS_COLON:
-        	self.set_state(JSONState.IN_PARAMETERS_VALUE)
-        
-        elif self.get_state() == JSONState.IN_PARAMETERS_VALUE:
-        	self.set_state(JSONState.IN_END)
+        if self.get_state() == JSONState.IN_NAME:
+            self.set_state(JSONState.BEFORE_PARAMETERS)
+        elif self.get_state() == JSONState.BEFORE_PARAMETERS:
+            self.set_state(JSONState.IN_PARAMETERS)
+        elif self.get_state() == JSONState.IN_PARAMETERS:
+            self.set_state(JSONState.IN_END)
+        elif self.get_state() == JSONState.IN_END:
+            self.set_state(JSONState.IN_NAME)
+
+    def goto_next_static_json(self) -> None:
+        if self.__static_json == JSONStatic.STR_BEFORE_NAME:
+            self.__static_json = JSONStatic.STR_BEFORE_PARAMETERS
+        else:
+            self.__static_json = JSONStatic.STR_BEFORE_NAME
+
+            

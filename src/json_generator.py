@@ -7,8 +7,9 @@ from src.state import JSONState
 from llm_sdk.llm_sdk import Small_LLM_Model
 import numpy as np
 from src.finite_state_machine import FiniteStateMachine
+from src.filter_decoder import FilterDecoder
+from src.state import JSONStatic
 import json
-import torch
 
 
 class JSONGenerator(Small_LLM_Model, ProcessingStage):
@@ -16,10 +17,11 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 	"""
 	def __init__(self) -> None:
 		super().__init__()
-		self.__json_results = list()
+		self.__json_results: list[str] = list()
 
 		self.__prompt_builder = PromptBuilder()
 		self.__fsm = FiniteStateMachine()
+		self.__filter_decoder = FilterDecoder()
 
 	def load_model_vocabulary(self) -> None:
 		path_to_vocabulary = self.get_path_to_vocab_file()
@@ -50,12 +52,13 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		if self.__fsm.get_state() == JSONState.IN_PARAMETERS_COLON:
 			return [":"]
 		if self.__fsm.get_state() == JSONState.IN_PARAMETERS_VALUE:
-			# parameters = self.get_parameters_as_str()
-			# print("parameters:", parameters)
-			# print("type parameters:", type(parameters))
 			return []
-		if self.__fsm.get_state() == JSONState.IN_CLOSE_BRACE:
+		else:
 			return ['}']
+		# if self.__fsm.get_state() == JSONState.IN_CLOSE_BRACE:
+		# 	return ['}']
+		# else:
+		
 
 	def get_allowed_logits(self, logits, generated_str: str, target: list[str]) -> list[int]:
 
@@ -72,8 +75,8 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		return masked_logits
 
 	def __prepare_function_names(self) -> None:
-		self.__function_names: list[int] = list(
-			map(lambda func: "\"" + func.name  + "\"", self.__functions_definition)
+		self.__function_names: list[str] = list(
+			function.name for function in self.__functions_definition
 		)
 		self.__function_names.append("\"null\"")
 
@@ -95,36 +98,56 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		
 		for prompt_schema in self.__prompts:
 			json_result = ''
-			generated_str = ''
-
-			self.current_prompt = "\"" + prompt_schema.prompt['prompt'] + "\""
-			clean_prompt = self.__prompt_builder(self.current_prompt)
-
-			input_ids_as_list = self.encode(clean_prompt).tolist()[0]
-
+			
+			self.__current_prompt = prompt_schema.prompt['prompt']
+			generated_str = '{"prompt":"' + self.__current_prompt + '","name": "'
+			clean_prompt = self.__prompt_builder(self.__current_prompt)
+			clean_prompt += generated_str
+			self.__input_ids_as_list = self.encode(clean_prompt).tolist()[0]
+			dynamic_generated = ''
 			while not self.__fsm.is_in_end_state():
-
-				print(f'state before IN loop: {self.__fsm.get_state()}')
-				logits = self.get_logits_from_input_ids(input_ids_as_list)
-				masked_logits = self.get_allowed_logits(logits, generated_str, self.get_allowed_tokens())
-				index_max_logit = np.argmax(masked_logits)
-
-				generated_str += self.decode([int(index_max_logit)])
-				input_ids_as_list.append(index_max_logit)
-
-				if self.__fsm.is_finished_parameters_value(generated_str):
-					print(f"The end state generated str: {generated_str}")
-					print("THIS 1")
+				logits = self.get_logits_from_input_ids(
+					self.__input_ids_as_list
+				)
+				if self.__fsm.is_in_static_state():
+					generated_str += self.__fsm.get_static_json()
+						
+					static_input_ids: Any = self.encode(
+						self.__fsm.get_static_json()	
+					).tolist()[0]
+					self.__input_ids_as_list += static_input_ids
+					self.__fsm.goto_next_static_json()
 					self.__fsm.goto_next_state()
-					json_result += generated_str
-				elif generated_str in self.get_allowed_tokens(): 
-					# if generated_str in self.__function_names:
-					# 	self.current_function_call = generated_str.strip('"')
-					self.__fsm.goto_next_state()
-					json_result += generated_str
-					generated_str = ''
-			self.__json_results.append(json_result)
-			self.current_state = JSONState.IN_START
+				else:
+					# must let model generate tokns 1 by 1
+					index_max_logit = np.argmax(logits)
+					generated_str += self.__swapped_vocabulary[int(index_max_logit)]\
+						.replace('Ġ', ' ')\
+						.replace('Ċ', '\n')
+					dynamic_generated += self.__swapped_vocabulary[int(index_max_logit)].replace("Ġ", ' ').replace('Ċ', '\n')
+					self.__input_ids_as_list.append(index_max_logit)
+					if self.__fsm.get_state() == JSONState.IN_NAME\
+							and dynamic_generated.rstrip() in self.__function_names:
+						self.__fsm.goto_next_state()
+						self.__fsm.goto_next_static_json()
+						dynamic_generated = ''
 
-			print("json_result: ==>", json_result)		
+				if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
+					and self.__filter_decoder.is_closed_brackets(generated_str):
+                                    self.__json_results.append(generated_str)
+                                    self.__fsm.set_state(JSONState.IN_NAME)
+                                    break
+
+				for json in self.__json_results:
+				    print(json)
+				print("*" * 60)
 		return None
+
+	def add_static_json(self) -> Any:
+		if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
+			return self.encode('{"prompt":').tolist()[0]
+		elif self.__fsm.get_state() == JSONState.BEFORE_NAME:
+			return self.encode(',"name":').tolist()[0]
+		elif self.__fsm.get_state() == JSONState.BEFORE_PARAMETERS:
+			return self.encode(',"parameters":').tolist()[0]
+		return []
