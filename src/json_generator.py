@@ -27,38 +27,10 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		path_to_vocabulary = self.get_path_to_vocab_file()
 		with open(path_to_vocabulary) as file:
 			self.__vocabulary = json.load(file)
-
-	def get_allowed_tokens(self) -> list[str]:
-		if self.__fsm.get_state() == JSONState.IN_START:
-			return ['{']
-		if self.__fsm.get_state() == JSONState.IN_PROMPT_KEY:
-			return ["\"prompt\""]
-		if self.__fsm.get_state() == JSONState.IN_PROMPT_COLON:
-			return [':']
-		if self.__fsm.get_state() == JSONState.IN_PROMPT_VALUE:
-			return [self.current_prompt]
-		if self.__fsm.get_state()== JSONState.IN_COMMA_AFTER_PROMPT:
-			return [","]
-		if self.__fsm.get_state() == JSONState.IN_NAME_KEY:
-			return ["\"name\""]
-		if self.__fsm.get_state() == JSONState.IN_NAME_COLON:
-			return [":"]
-		if self.__fsm.get_state() == JSONState.IN_NAME_VALUE:
-			return self.__function_names
-		if self.__fsm.get_state() == JSONState.IN_COMMA_AFTER_NAME:
-			return [","]
-		if self.__fsm.get_state() == JSONState.IN_PARAMETERS_KEY:
-			return["\"parameters\""]
-		if self.__fsm.get_state() == JSONState.IN_PARAMETERS_COLON:
-			return [":"]
-		if self.__fsm.get_state() == JSONState.IN_PARAMETERS_VALUE:
-			return []
-		else:
-			return ['}']
-		# if self.__fsm.get_state() == JSONState.IN_CLOSE_BRACE:
-		# 	return ['}']
-		# else:
-		
+		# self.__masked = [False] * len(self.__vocabulary)
+		# for k, v in self.__vocabulary.items():
+		# 	if self.__filter_decoder.is_allowed_token(k):
+		# 		self.__masked[v] = True
 
 	def get_allowed_logits(self, logits, generated_str: str, target: list[str]) -> list[int]:
 
@@ -93,9 +65,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		self.__prepare_data(data)
 
-		# for PromptBuilder object.
-		print("pipeline generator:")
-		
 		for prompt_schema in self.__prompts:
 			json_result = ''
 			
@@ -109,6 +78,11 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				logits = self.get_logits_from_input_ids(
 					self.__input_ids_as_list
 				)
+				print(generated_str)
+				# for idx in range(len(self.__masked)):
+				# 	if self.__masked[idx] is False:
+				# 		logits[idx] = 0
+
 				if self.__fsm.is_in_static_state():
 					generated_str += self.__fsm.get_static_json()
 						
@@ -121,10 +95,10 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				else:
 					# must let model generate tokns 1 by 1
 					index_max_logit = np.argmax(logits)
-					generated_str += self.__swapped_vocabulary[int(index_max_logit)]\
+					generated_str += self.__swapped_vocabulary.get(int(index_max_logit), '')\
 						.replace('Ġ', ' ')\
 						.replace('Ċ', '\n')
-					dynamic_generated += self.__swapped_vocabulary[int(index_max_logit)].replace("Ġ", ' ').replace('Ċ', '\n')
+					dynamic_generated += self.__swapped_vocabulary.get(int(index_max_logit), '').replace("Ġ", ' ').replace('Ċ', '\n')
 					self.__input_ids_as_list.append(index_max_logit)
 					if self.__fsm.get_state() == JSONState.IN_NAME\
 							and dynamic_generated.rstrip() in self.__function_names:
@@ -133,14 +107,12 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 						dynamic_generated = ''
 
 				if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
-					and self.__filter_decoder.is_closed_brackets(generated_str):
-                                    self.__json_results.append(generated_str)
-                                    self.__fsm.set_state(JSONState.IN_NAME)
-                                    break
+						and self.__filter_decoder.is_closed_brackets(generated_str):
+					self.__json_results.append(generated_str)
+					print("generated_str:", generated_str)
+					self.__fsm.set_state(JSONState.IN_NAME)
+					break
 
-				for json in self.__json_results:
-				    print(json)
-				print("*" * 60)
 		return None
 
 	def add_static_json(self) -> Any:

@@ -1,7 +1,9 @@
 class FilterDecoder:
     
     def __init__(self) -> None:
-        self.__index_of_static_json = 0
+        self.__lowercase_alpha = 'abcdefghijklmnopqrstuvwxyz'
+        self.__uppercase_alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        self.__special_characters = '{",Ġ:"}'
 
     def is_closed_brackets(self, generated_json: str) -> True:
         stack = list()
@@ -16,11 +18,27 @@ class FilterDecoder:
             return True
         return False
     
-    
+    def is_allowed_token(self, token: str) -> bool:
+        for char in token[0]:
+            if char not in self.__lowercase_alpha\
+                    and char not in self.__uppercase_alpha\
+                    and char not in self.__special_characters:
+                return False
+        return True
+
+    def filter_model_vocabulary(self, vocab: tuple[list, int]) -> None:
+        return dict(filter(self.is_allowed_token, vocab))
+
+
 if __name__ == '__main__':
     
-    print(FilterDecoder.is_closed_brackets("{dhidhodhhdd}}"))
-    print(FilterDecoder.is_closed_brackets("}"))
-    print(FilterDecoder.is_closed_brackets("{{{}}}"))
-    print(FilterDecoder.is_closed_brackets("{{{{{"))
-    print(FilterDecoder.is_closed_brackets("}}}}}}}}}}"))
+    filter_decoder = FilterDecoder()
+    dic = filter_decoder.filter_model_vocabulary(
+        {
+            "name": "hello",
+            "age": 19,
+            '\tOK': "nn"
+        }.items()
+    )
+    print(dic)
+    print(type(dic))

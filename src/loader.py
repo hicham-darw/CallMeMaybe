@@ -31,6 +31,6 @@ class JSONReader:
         with open(filename, "r") as f:
             data = json.load(f)
         self.__json_data[key] = data
-    
+
 
     

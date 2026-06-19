@@ -124,3 +124,14 @@ class Small_LLM_Model:
             filename=tokenizer_file_name
         )
         return tokenizer_path
+
+
+# import json
+# if __name__ == '__main__':
+#     model = Small_LLM_Model()
+#     path_vocabulary = model.get_path_to_vocab_file()
+#     with open(path_vocabulary) as file:
+#         vocab = json.load(file)
+
+#     print(vocab)
+#     print(type(vocab))
