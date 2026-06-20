@@ -9,8 +9,6 @@ class PromptBuilder:
 
         clean_prompt = f"""
         You are a strict function_calling AI assistant.
-        your only job is to analyze the user prompt and decide if can use any
-        function from THE AVAILABLE FUNCTIONS
 
         AVAILABLE FUNCTIONS:
         	{self.__available_functions}
@@ -31,12 +29,6 @@ class PromptBuilder:
         		"prompt": "<USER PROMPT HERE>",
         		"name": "<function_name>",
         		"parameters": {{"a": 2.0, "b": 3.0}}
-        	}}
-           else:
-        	{{
-        		"prompt": "<USER PROMPT HERE>",
-        		"name": null,
-        		"parameters": null,
         	}}
         """
         return clean_prompt

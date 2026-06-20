@@ -10,23 +10,24 @@ import time
 if __name__ == '__main__':
     
     # parser her
-	start = time.time()
-	print(time.ctime(start))
-	arg_parser = ArgParser()
-	arg_parser.initial_arguments()
-	json_manager = JSONManager(
-		arg_parser.get_functions_definition_path(),
-		arg_parser.get_prompts_path(),
-		arg_parser.get_model(),
-		arg_parser.get_output_path()
-	)
-	data = {
-		'functions_definition_path': arg_parser.get_functions_definition_path(),
-		'prompts_path': arg_parser.get_prompts_path()		
-	}
-	for stage in json_manager.get_stages():
-		data = stage.execute(data)
-	print('FIN:', '#' * 40)
-	end = time.time()
-	print(time.ctime(end))
-	exit(0)
+    start = time.time()
+    print(start)
+
+    arg_parser = ArgParser()
+    arg_parser.initial_arguments()
+    json_manager = JSONManager(
+        arg_parser.get_functions_definition_path(),
+        arg_parser.get_prompts_path(),
+        arg_parser.get_model(),
+        arg_parser.get_output_path()
+    )
+    data = {
+        'functions_definition_path': arg_parser.get_functions_definition_path(),
+        'prompts_path': arg_parser.get_prompts_path()
+    }
+    for stage in json_manager.get_stages():
+        data = stage.execute(data)
+    print('FIN:', '#' * 40)
+    end = time.time()
+    print(end)
+    exit(0)
