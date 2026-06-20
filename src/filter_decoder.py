@@ -18,6 +18,17 @@ class FilterDecoder:
             return True
         return False
     
+    def is_only_one_function(self, part_name: str, function_names: list[str]) -> bool:
+        
+        counter = 0
+        for function in function_names:
+            if function.startswith(part_name):
+                counter += 1
+
+        if not counter:
+            return True
+        return False
+        
     def is_allowed_token(self, token: str) -> bool:
         for char in token[0]:
             if char not in self.__lowercase_alpha\

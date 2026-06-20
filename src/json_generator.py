@@ -100,6 +100,11 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 						.replace('Ċ', '\n')
 					dynamic_generated += self.__swapped_vocabulary.get(int(index_max_logit), '').replace("Ġ", ' ').replace('Ċ', '\n')
 					self.__input_ids_as_list.append(index_max_logit)
+					
+					if self.__fsm.get_state() == JSONState.IN_NAME\
+							and self.__filter_decoder.is_only_one_function(dynamic_generated, self.__function_names):
+						dynamic_generated = self.__get_only_available_function()
+					
 					if self.__fsm.get_state() == JSONState.IN_NAME\
 							and dynamic_generated.rstrip() in self.__function_names:
 						self.__fsm.goto_next_state()
@@ -115,6 +120,12 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		return None
 
+	def __get_only_available_function(self, dynamic_generated: str) -> str:
+		for function in self.__function_names:
+			if dynamic_generated in function:
+				return function
+		return dynamic_generated
+     
 	def add_static_json(self) -> Any:
 		if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
 			return self.encode('{"prompt":').tolist()[0]
