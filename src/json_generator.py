@@ -65,16 +65,20 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			json_result = ''
 			
 			self.__current_prompt = prompt_schema.prompt['prompt']
-			generated_str = '{"prompt":"' + self.__current_prompt + '","name":"fn'
+			generated_str = '{"prompt":"' + self.__current_prompt + '","name": "'
 			clean_prompt = self.__prompt_builder(self.__current_prompt)
 			clean_prompt += generated_str
 			self.__input_ids_as_list = self.encode(clean_prompt).tolist()[0]
-			dynamic_generated = 'fn'
+			dynamic_generated = ''
 			while not self.__fsm.is_in_end_state():
-				print(f"generated: |{generated_str}|")
 				logits = self.get_logits_from_input_ids(
 					self.__input_ids_as_list
 				)
+				print(generated_str)
+				# for idx in range(len(self.__masked)):
+				# 	if self.__masked[idx] is False:
+				# 		logits[idx] = 0
+
 				if self.__fsm.is_in_static_state():
 					generated_str += self.__fsm.get_static_json()
 						
@@ -87,9 +91,10 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				else:
 					# must let model generate tokns 1 by 1
 					index_max_logit = np.argmax(logits)
-					token = self.decode(int(index_max_logit))
-					generated_str += token
-					dynamic_generated += token
+					generated_str += self.__swapped_vocabulary.get(int(index_max_logit), '')\
+						.replace('Ġ', ' ')\
+						.replace('Ċ', '\n')
+					dynamic_generated += self.__swapped_vocabulary.get(int(index_max_logit), '').replace("Ġ", ' ').replace('Ċ', '\n')
 					self.__input_ids_as_list.append(index_max_logit)
 					
 					if self.__fsm.get_state() == JSONState.IN_NAME\
@@ -98,10 +103,14 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 					if self.__fsm.get_state() == JSONState.IN_NAME\
 							and dynamic_generated.rstrip() in self.__function_names:
+						generated_str += dynamic_generated[3:]
 						self.__fsm.goto_next_state()
 						self.__fsm.goto_next_static_json()
 						dynamic_generated = ''
-
+						continue
+					else:
+						generated_str += self.decode(int(index_max_logit))
+						dynamic_generated += self.decode(int(index_max_logit))
 				if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
 						and self.__filter_decoder.is_closed_brackets(generated_str):
 					self.__json_results.append(generated_str)
@@ -111,13 +120,18 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		return None
 
+	def found_in_function_names(self, part_name: str) -> bool:
+		for function_name in self.__function_names:
+			if function_name.startswith(part_name):
+				return True
+		return False
+
 	def __get_only_available_function(self, dynamic_generated: str) -> str:
 		for function in self.__function_names:
 			if dynamic_generated in function:
-				print("this is a function not completed but only one found ")
 				return function
 		return dynamic_generated
-     
+
 	def add_static_json(self) -> Any:
 		if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
 			return self.encode('{"prompt":').tolist()[0]

@@ -28,7 +28,17 @@ class PromptBuilder:
         	{{
         		"prompt": "<USER PROMPT HERE>",
         		"name": "<function_name>",
-        		"parameters": {{"a": 2.0, "b": 3.0}}
+        		"parameters": {{"a": 2, "b": 3}}
         	}}
+<<<<<<< HEAD
+=======
+           else:
+        	{{
+        		"prompt": "<USER PROMPT HERE>",
+        		"name": null,
+        		"parameters": null,
+        	}}
+        {{"prompt": {current_prompt},"name": "fn_s
+>>>>>>> 0a09fd5 (apply constrained decoding on function_names)
         """
         return clean_prompt
