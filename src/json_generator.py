@@ -27,6 +27,10 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		path_to_vocabulary = self.get_path_to_vocab_file()
 		with open(path_to_vocabulary) as file:
 			self.__vocabulary = json.load(file)
+		# self.__masked = [False] * len(self.__vocabulary)
+		# for k, v in self.__vocabulary.items():
+		# 	if self.__filter_decoder.is_allowed_token(k):
+		# 		self.__masked[v] = True
 
 	def get_allowed_logits(self, logits, generated_str: str, target: list[str]) -> list[int]:
 
@@ -37,7 +41,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			for k, v in self.__vocabulary.items():
 				if item.startswith((generated_str + self.decode([v]))):
 					masked_logits[v] = logits[v]
-# maybe line under me decode here take a time more
+# maybe line under me
 				if generated_str + self.decode([v]) == target:
 					break
 		return masked_logits
@@ -65,19 +69,13 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			json_result = ''
 			
 			self.__current_prompt = prompt_schema.prompt['prompt']
-			generated_str = '{"prompt":"' + self.__current_prompt + '","name": "'
+			generated_str = '{"prompt":"' + self.__current_prompt + '","name": "fn_'
 			clean_prompt = self.__prompt_builder(self.__current_prompt)
 			clean_prompt += generated_str
 			self.__input_ids_as_list = self.encode(clean_prompt).tolist()[0]
-			dynamic_generated = ''
+			dynamic_generated = 'fn_'
 			while not self.__fsm.is_in_end_state():
-				logits = self.get_logits_from_input_ids(
-					self.__input_ids_as_list
-				)
 				print(generated_str)
-				# for idx in range(len(self.__masked)):
-				# 	if self.__masked[idx] is False:
-				# 		logits[idx] = 0
 
 				if self.__fsm.is_in_static_state():
 					generated_str += self.__fsm.get_static_json()
@@ -90,11 +88,22 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 					self.__fsm.goto_next_state()
 				else:
 					# must let model generate tokns 1 by 1
-					index_max_logit = np.argmax(logits)
-					generated_str += self.__swapped_vocabulary.get(int(index_max_logit), '')\
-						.replace('Ġ', ' ')\
-						.replace('Ċ', '\n')
-					dynamic_generated += self.__swapped_vocabulary.get(int(index_max_logit), '').replace("Ġ", ' ').replace('Ċ', '\n')
+					logits = self.get_logits_from_input_ids(
+						self.__input_ids_as_list
+					)
+					if self.__fsm.get_state() == JSONState.IN_NAME:
+						masked_logits = np.full(len(logits), -np.inf)
+						for token, token_id in self.__vocabulary.items():
+							if self.found_in_function_names(
+	          					dynamic_generated + self.decode(token_id)
+	               			):
+								masked_logits[token_id] = logits[token_id]
+					else:
+						masked_logits = logits
+		
+					index_max_logit = np.argmax(masked_logits)
+					#generated_str += self.decode(int(index_max_logit))
+					dynamic_generated += self.decode(int(index_max_logit))
 					self.__input_ids_as_list.append(index_max_logit)
 					
 					if self.__fsm.get_state() == JSONState.IN_NAME\
@@ -128,7 +137,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 	def __get_only_available_function(self, dynamic_generated: str) -> str:
 		for function in self.__function_names:
-			if dynamic_generated in function:
+			if function.startswith(dynamic_generated):
 				return function
 		return dynamic_generated
 
