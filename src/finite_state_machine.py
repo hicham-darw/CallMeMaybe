@@ -34,7 +34,7 @@ class FiniteStateMachine:
             return True
         return False
 
-    def is_in_static_state(self) -> bool:
+    def is_in_state_static_tokens(self) -> bool:
         if self.__state == JSONState.BEFORE_PARAMETERS:
             return True
         return False

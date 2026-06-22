@@ -11,6 +11,8 @@ from src.filter_decoder import FilterDecoder
 from src.state import JSONStatic
 import json
 
+import sys
+
 
 class JSONGenerator(Small_LLM_Model, ProcessingStage):
 	"""JSONGenerator
@@ -27,10 +29,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		path_to_vocabulary = self.get_path_to_vocab_file()
 		with open(path_to_vocabulary) as file:
 			self.__vocabulary = json.load(file)
-		# self.__masked = [False] * len(self.__vocabulary)
-		# for k, v in self.__vocabulary.items():
-		# 	if self.__filter_decoder.is_allowed_token(k):
-		# 		self.__masked[v] = True
 
 	def get_allowed_logits(self, logits, generated_str: str, target: list[str]) -> list[int]:
 
@@ -54,24 +52,77 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 	def __prepare_data(self, data: Any) -> None:
 		
-		self.load_model_vocabulary()
-		self.__swapped_vocabulary = {_id: token for token, _id in self.__vocabulary.items()}
 		self.__functions_definition = data['functions_definition']
 		self.__prompts = data['prompts']
+		self.load_model_vocabulary()
 		self.__prepare_function_names()
 		self.__prompt_builder.set_available_functions(self.__functions_definition)
+
+		self.__filter_decoder.set_list_before_parameters(
+			self.encode(JSONStatic.STR_BEFORE_PARAMETERS.value)
+		)
+		self.__input_ids_as_list: list[int] = self.__prompt_builder()
+		
+	def get_only_function_found(self, dynamic_str: str) -> str:
+		for function_name in self.__function_names:
+			if function_name.startswith(dynamic_str):
+				return function_name
+		return dynamic_str
+
+	def __generate_function_call(self) -> str:
+
+		json_result = '{"prompt":"' + self.__current_prompt + '","name": "'
+		dynamic_tokens = ''
+		input_ids_as_list = self.__input_ids_as_list + self.encode(json_result).tolist()[0]
+		dynamic_generated = ''
+
+		while not self.__fsm.is_in_end_state():
+			if self.__fsm.is_in_state_static_tokens():
+				# continue here ... 
+				input_ids_as_list += self.__filter_decoder.get_static_tokens_by_state()
+				json_result += self.__fsm.get_static_json()
+				self.__fsm.goto_next_state()
+				self.__fsm.goto_next_static_json()
+			else:
+				logits = self.get_logits_from_input_ids(input_ids_as_list)
+				if self.__fsm.get_state() == JSONState.IN_NAME:
+					masked_logits = np.full(len(logits), -np.inf)
+					for token, token_id in self.__vocabulary.items():
+						if self.__filter_decoder.is_in_functions(
+							dynamic_generated + self.decode([token_id]), self.__function_names
+						):
+							masked_logits[token_id] = logits[token_id]
+				else:
+					masked_logits = logits
+				index_max_logit = np.argmax(masked_logits)
+				dynamic_generated += self.decode([index_max_logit])
+				# input_ids_as_list.append(index_max_logit)
+				if self.__fsm.get_state() == JSONState.IN_NAME and\
+						self.__filter_decoder.is_found_only_one_function(dynamic_generated, self.__function_names):
+					dynamic_generated = self.get_only_function_found(dynamic_generated)
+					generated_str += dynamic_generated
+					input_ids_as_list += self.encode(dynamic_generated).tolist()[0]
+					self.__fsm.goto_next_state()
+				elif self.__fsm.get_state() == JSONState.IN_NAME:
+					input_ids_as_list.append(index_max_logit)
+					dynamic_generated += self.decode(index_max_logit)
+				else:
+					input_ids_as_list.append(index_max_logit)
+			if self.__fsm.get_state() == JSONState.IN_PARAMETERS and self.__filter_decoder.is_closed_bracket(generated_str):
+				break
+
+		return json_result
+
 
 	def execute(self, data: Any) -> Any:
 
 		self.__prepare_data(data)
 
 		for prompt_schema in self.__prompts:
-			json_result = ''
-			
 			self.__current_prompt = prompt_schema.prompt['prompt']
-			generated_str = '{"prompt":"' + self.__current_prompt + '","name": "fn_'
-			clean_prompt = self.__prompt_builder(self.__current_prompt)
-			clean_prompt += generated_str
+
+			json_result = self.__generate_function_call()
+
 			self.__input_ids_as_list = self.encode(clean_prompt).tolist()[0]
 			dynamic_generated = 'fn_'
 			while not self.__fsm.is_in_end_state():

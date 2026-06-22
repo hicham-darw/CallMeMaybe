@@ -5,16 +5,13 @@ class PromptBuilder:
         for function in functions_definition:
             self.__available_functions += function.model_dump_json() + '\n'
 
-    def __call__(self, current_prompt: str) -> str:
+    def __call__(self) -> str:
 
         clean_prompt = f"""
         You are a strict function_calling AI assistant.
 
         AVAILABLE FUNCTIONS:
         	{self.__available_functions}
-
-        USER PROMPT:
-        	{current_prompt}
     		
         INSTRUCTIONS:
         	choose one matching function
@@ -30,15 +27,11 @@ class PromptBuilder:
         		"name": "<function_name>",
         		"parameters": {{"a": 2, "b": 3}}
         	}}
-<<<<<<< HEAD
-=======
            else:
         	{{
         		"prompt": "<USER PROMPT HERE>",
         		"name": null,
         		"parameters": null,
         	}}
-        {{"prompt": {current_prompt},"name": "fn_s
->>>>>>> 0a09fd5 (apply constrained decoding on function_names)
         """
         return clean_prompt
