@@ -5,7 +5,7 @@ class JSONStatic(str, Enum):
     """Small set of structural JSON tokens controlled by the FSM."""
 
     STR_BEFORE_NAME = '","name":"'
-    STR_BEFORE_PARAMETERS = '","parameters":'
+    STR_BEFORE_PARAMETERS = '","parameters": {"'
 
 
 class JSONState(Enum):

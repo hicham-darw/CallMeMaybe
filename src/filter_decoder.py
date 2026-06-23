@@ -30,7 +30,7 @@ class FilterDecoder:
         return False
 
     def is_closed_bracket(self, json_str: str) -> None:
-        json_str = json_str.rstrip()
-        if json_str[0] = '{' and json_str[-1] == '}':
+        json_str = json_str.strip()
+        if json_str[0] == '{' and json_str[-1] == '}':
             return True
         return False
