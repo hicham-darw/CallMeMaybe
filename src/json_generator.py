@@ -59,10 +59,16 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__prepare_function_names()
 		self.__prompt_builder.set_available_functions(self.__functions_definition)
 
-		self.__filter_decoder.set_list_before_parameters(
+		self.__filter_decoder.set_tokens_before_prompt(
+			self.encode(JSONStatic.STR_BEFORE_PROMPT.value).tolist()[0]
+		)
+		self.__filter_decoder.set_tokens_before_name(
+			self.encode(JSONStatic.STR_BEFORE_NAME.value).tolist()[0]
+		)
+		self.__filter_decoder.set_tokens_before_parameters(
 			self.encode(JSONStatic.STR_BEFORE_PARAMETERS.value).tolist()[0]
 		)
-		self.__input_ids_as_list: list[int] = self.encode(self.__prompt_builder()).tolist()[0]
+		self.__prefix_ids: list[int] = self.encode(self.__prompt_builder()).tolist()[0]
 		
 	def get_only_function_found(self, dynamic_str: str) -> str:
 		for function_name in self.__function_names:
@@ -70,125 +76,73 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				return function_name
 		return dynamic_str
 
-	def __generate_function_call(self) -> str:
-
-		json_result = '{"prompt":"' + self.__current_prompt + '","name": "'
-		input_ids_as_list: list[int] = self.__input_ids_as_list + self.encode(json_result).tolist()[0]
-		dynamic_generated = ''
-		dynamic_ids = []
-		while not self.__fsm.is_in_end_state():
-			print("decode1:", self.decode(input_ids_as_list[len(self.__input_ids_as_list):]))
-			if self.__fsm.is_in_state_static_tokens():
-				input_ids_as_list += self.__filter_decoder.get_static_tokens_by_state()
-				json_result += self.__fsm.get_static_json()
-				self.__fsm.goto_next_state()
-				self.__fsm.goto_next_static_json()
-			else:
-				masked_logits = self.get_logits_from_input_ids(input_ids_as_list + dynamic_ids)
-				# if self.__fsm.get_state() == JSONState.IN_NAME:
-				# 	masked_logits = np.full(len(logits), -np.inf)
-				# 	for token, token_id in self.__vocabulary.items():
-				# 		if self.__filter_decoder.is_in_functions(
-				# 			dynamic_generated + self.decode([token_id]), self.__function_names
-				# 		):
-				# 			masked_logits[token_id] = logits[token_id]
-				# else:
-				# 	masked_logits = logits
-				index_max_logit = np.argmax(masked_logits)
-				# print("predict :", self.decode([index_max_logit]))
-				dynamic_generated += self.decode([int(index_max_logit)])
-				print("dynamic_generated:", dynamic_generated)
-				if self.__fsm.get_state() == JSONState.IN_NAME:
-					if self.__filter_decoder.is_found_only_one_function(dynamic_generated, self.__function_names):
-						# print("DG1:", dynamic_generated)
-						dynamic_generated = self.get_only_function_found(dynamic_generated)
-
-						# print("DG2:", dynamic_generated)
-						json_result += dynamic_generated
-						input_ids_as_list += self.encode(dynamic_generated).tolist()[0]
-						self.__fsm.goto_next_state()
-						self.__fsm.goto_next_static_json()
-						dynamic_generated = ''
-						dynamic_ids = []
-					else:
-						dynamic_ids += [int(index_max_logit)]
-						# dynamic_generated += self.decode([index_max_logit])
-					# json_result += self.decode([index_max_logit])
-				else:
-					input_ids_as_list += [int(index_max_logit)]
-					json_result += self.decode([index_max_logit])
-			print(f"json_result: {json_result}")
-			if self.__fsm.get_state() == JSONState.IN_PARAMETERS and self.__filter_decoder.is_closed_bracket(json_result):
-				self.__fsm.goto_next_state()
-				self.__fsm.goto_next_static_json()
-				break
-		self.__fsm.goto_next_state()
-		return json_result
-
 
 	def execute(self, data: Any) -> Any:
 
 		self.__prepare_data(data)
 
 		for prompt_schema in self.__prompts:
+	
 			self.__current_prompt = prompt_schema.prompt['prompt']
+			ids_current_prompt = self.__prefix_ids[:]
+			ids_current_prompt += self.__filter_decoder.get_tokens_before_prompt()
+			ids_current_prompt += self.encode(self.__current_prompt).tolist()[0]
+			ids_current_prompt += self.__filter_decoder.get_tokens_before_name()
+			
+			dynamic_generated = ''
+			dynamic_ids: list[int] = []
+			while not self.__fsm.is_in_end_state():
+				print(self.decode(ids_current_prompt[len(self.__prefix_ids):]))
+				print()
 
-			json_result = self.__generate_function_call()
-			print(f"json_result: |{json_result}|")
-			# self.__input_ids_as_list = self.encode(clean_prompt).tolist()[0]
-			# dynamic_generated = 'fn_'
-			# while not self.__fsm.is_in_end_state():
-			# 	print(generated_str)
-
-			# 	if self.__fsm.is_in_static_state():
-			# 		generated_str += self.__fsm.get_static_json()
-						
-			# 		static_input_ids: Any = self.encode(
-			# 			self.__fsm.get_static_json()	
-			# 		).tolist()[0]
-			# 		self.__input_ids_as_list += static_input_ids
-			# 		self.__fsm.goto_next_static_json()
-			# 		self.__fsm.goto_next_state()
-			# 	else:
-			# 		# must let model generate tokns 1 by 1
-			# 		logits = self.get_logits_from_input_ids(
-			# 			self.__input_ids_as_list
-			# 		)
-			# 		if self.__fsm.get_state() == JSONState.IN_NAME:
-			# 			masked_logits = np.full(len(logits), -np.inf)
-			# 			for token, token_id in self.__vocabulary.items():
-			# 				if self.found_in_function_names(
-	        #   					dynamic_generated + self.decode(token_id)
-	        #        			):
-			# 					masked_logits[token_id] = logits[token_id]
-			# 		else:
-			# 			masked_logits = logits
+				if self.__fsm.get_state() == JSONState.BEFORE_PARAMETERS:
+					ids_current_prompt += self.encode(
+						self.__fsm.get_static_json()	
+					).tolist()[0]
+					self.__fsm.goto_next_static_json()
+					self.__fsm.goto_next_state()
+				else:
+					# must let model generate tokns 1 by 1
+					logits = self.get_logits_from_input_ids(
+						ids_current_prompt
+					)
+					if self.__fsm.get_state() == JSONState.IN_NAME:
+						masked_logits = np.full(len(logits), -np.inf)
+						for token_id in self.__vocabulary.values():
+							if self.found_in_function_names(
+	          						dynamic_generated + self.decode(token_id)
+	               					):
+								masked_logits[token_id] = logits[token_id]
+					else:
+						masked_logits = logits
 		
-			# 		index_max_logit = np.argmax(masked_logits)
-			# 		#generated_str += self.decode(int(index_max_logit))
-			# 		dynamic_generated += self.decode(int(index_max_logit))
-			# 		self.__input_ids_as_list.append(index_max_logit)
+					index_max_logit = np.argmax(masked_logits)
+					dynamic_generated += self.decode([int(index_max_logit)])
+					dynamic_ids += [int(index_max_logit)]
 					
-			# 		if self.__fsm.get_state() == JSONState.IN_NAME\
-			# 				and self.__filter_decoder.is_only_one_function(dynamic_generated, self.__function_names):
-			# 			dynamic_generated = self.__get_only_available_function(dynamic_generated)
+					if self.__fsm.get_state() == JSONState.IN_NAME\
+							and self.__filter_decoder.is_found_only_one_function(dynamic_generated, self.__function_names):
+						dynamic_generated = self.__get_only_available_function(dynamic_generated)
+						dynamic_ids = self.encode(dynamic_generated).tolist()[0]
 
-			# 		if self.__fsm.get_state() == JSONState.IN_NAME\
-			# 				and dynamic_generated.rstrip() in self.__function_names:
-			# 			generated_str += dynamic_generated[3:]
-			# 			self.__fsm.goto_next_state()
-			# 			self.__fsm.goto_next_static_json()
-			# 			dynamic_generated = ''
-			# 			continue
-			# 		else:
-			# 			generated_str += self.decode(int(index_max_logit))
-			# 			dynamic_generated += self.decode(int(index_max_logit))
-			# 	if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
-			# 			and self.__filter_decoder.is_closed_brackets(generated_str):
-			# 		self.__json_results.append(generated_str)
-			# 		print("generated_str:", generated_str)
-			# 		self.__fsm.set_state(JSONState.IN_NAME)
-			# 		break
+					if self.__fsm.get_state() == JSONState.IN_NAME\
+							and dynamic_generated.rstrip() in self.__function_names:
+						ids_current_prompt += dynamic_ids
+						self.__fsm.goto_next_state()
+						self.__fsm.goto_next_static_json()
+						dynamic_generated = ''
+						dynamic_ids = []
+						continue
+
+					if self.__fsm.get_state() == JSONState.IN_PARAMETERS:
+						ids_current_prompt += [int(index_max_logit)]
+
+				if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
+						and self.__filter_decoder.is_closed_brackets(dynamic_generated):
+					self.__json_results.append(self.decode(ids_current_prompt[len(self.__prefix_ids):]))
+					print("json_results:", self.__json_results)
+					self.__fsm.set_state(JSONState.IN_NAME)
+					break
 
 		return None
 

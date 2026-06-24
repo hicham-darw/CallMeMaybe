@@ -1,19 +1,35 @@
 import numpy as np
-
+from src.state import JSONState
 
 class FilterDecoder:
 
     def __init__(self) -> None:
+        self.__tokens_before_prompt: list[int] = []
+        self.__tokens_before_name: list[int] = []
         self.__tokens_before_params: list[int] = []
 
-    def set_list_before_parameters(
-        self, list_before_param: str
+    # setters
+    def set_tokens_before_prompt(self, tokens_before_prompt: list[int]) -> None:
+        self.__tokens_before_prompt = tokens_before_prompt
+
+    def set_tokens_before_name(self, tokens_before_name: list[int]) -> None:
+        self.__tokens_before_name = tokens_before_name
+
+    def set_tokens_before_parameters(
+        self, list_before_param: list[int]
     ) -> None:
-        self.__tokens_before_params: list[int] = list_before_param
+        self.__tokens_before_params = list_before_param
 
-    def get_static_tokens_by_state(self) -> list[int]:
+    # getters
+    def get_tokens_before_prompt(self) -> list[int]:
+        return self.__tokens_before_prompt
+
+    def get_tokens_before_name(self) -> list[int]:
+        return self.__tokens_before_name
+
+    def get_tokens_before_parameters(self) -> list[int]:
         return self.__tokens_before_params
-
+        
     def is_in_functions(self, dynamic_str: str, function_names: list[str]) -> bool:
         for function_name in function_names:
             if function_name.startswith(dynamic_str):
@@ -29,8 +45,10 @@ class FilterDecoder:
             return True
         return False
 
-    def is_closed_bracket(self, json_str: str) -> None:
+    def is_closed_brackets(self, json_str: str) -> bool:
         json_str = json_str.strip()
-        if json_str[0] == '{' and json_str[-1] == '}':
+        if not json_str:
+            return False
+        if json_str[-1] == '}':
             return True
         return False
