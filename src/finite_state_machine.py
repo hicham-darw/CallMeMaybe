@@ -1,11 +1,12 @@
-from src.state import JSONState, JSONStatic
+from src.state import JSONState, JSONStatic, ParameterState
 
 
 class FiniteStateMachine:
     
     def __init__(self) -> None:
-        self.__state = JSONState.IN_NAME
-        self.__static_json = JSONStatic.STR_BEFORE_NAME
+        self.__state = JSONState.BEFORE_PROMPT
+        self.__static_json = JSONStatic.STR_BEFORE_PROMPT
+        self.__parameters_state = ParameterState.IN_KEY
 
     def get_static_json(self) -> str:
         return self.__static_json.value
@@ -13,9 +14,17 @@ class FiniteStateMachine:
     def get_state(self) -> JSONState:
         return self.__state
     
+    def get_parameters_state(self) -> ParameterState:
+        return self.__parameters_state
+
+    def set_parameters_state(self, state: ParameterState) -> None:
+        self.__parameters_state = state
+
     def set_state(self, new_state: JSONState) -> None:
         self.__state = new_state
 
+    def set_static_json(self, state: JSONStatic) -> None:
+    	self.__static_json = state
     
     def is_in_end_state(self) -> bool:
         if self.__state == JSONState.IN_END:
