@@ -29,5 +29,5 @@ if __name__ == '__main__':
         data = stage.execute(data)
     print('FIN:', '#' * 40)
     end = time.time()
-    print(end)
+    print("time:", end - start)
     exit(0)

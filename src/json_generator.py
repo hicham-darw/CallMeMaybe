@@ -92,24 +92,16 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			dynamic_generated: str = ''
 			dynamic_ids: list[int] = []
 			while not self.__fsm.is_in_end_state():
+				#print(self.decode(ids_current_prompt[len(self.__prefix_ids):]))
 				if self.__fsm.get_state() == JSONState.BEFORE_PARAMETERS:
 					ids_current_prompt += self.__tokens_before_parameters
 					self.__fsm.goto_next_static_json()
 					self.__fsm.goto_next_state()
 				else:
 					# must let model generate tokns 1 by 1
-					logits = self.get_logits_from_input_ids(
-						ids_current_prompt
+					masked_logits = self.get_logits_from_input_ids(
+						ids_current_prompt + dynamic_ids
 					)
-					if self.__fsm.get_state() == JSONState.IN_NAME:
-						masked_logits = np.full(len(logits), -np.inf)
-						for token_id in self.__vocabulary.values():
-							if self.found_in_function_names(
-	          						dynamic_generated + self.decode(token_id)
-	               					):
-								masked_logits[token_id] = logits[token_id]
-					else:
-							masked_logits = np.asarray(logits, dtype=float)
 		
 					index_max_logit = np.argmax(masked_logits)
 					next_token_id = int(index_max_logit)
@@ -137,7 +129,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
 						and self.__filter_decoder.is_closed_brackets(dynamic_generated):
 					self.__json_results.append(self.decode(ids_current_prompt[len(self.__prefix_ids):]))
-					print("json_results:", self.__json_results)
+					print("json_results:", self.__json_results[-1])
 					self.__fsm.set_state(JSONState.IN_NAME)
 					break
 
