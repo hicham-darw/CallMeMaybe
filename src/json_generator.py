@@ -90,7 +90,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			self.__current_function_name: str = ''
 			dynamic_generated: str = ''
 			dynamic_ids: list[int] = []
-			keys_function: list[str] | None = None
 			self.json_result: str =	''
 			while not self.__fsm.is_in_end_state():
 				print(">>", self.json_result)
@@ -134,28 +133,41 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 					dynamic_generated = "{\""
 					dynamic_ids = []
 				elif self.__fsm.get_state() == JSONState.IN_PARAMETERS:
-					# if self.__filter_decoder.is_closed_brackets(dynamic_generated):
-					# 	print("json generated")
-					# 	self.__fsm.set_state(JSONState.IN_END)
 
-					keys_function = self.get_parameters_keys(self.__current_function_name)
+					keys_param, values_param = self.get_parameters_keys(self.__current_function_name)
+					print(f"key val parameters: {type(keys_param)} | {type(values_param)}")
+
 					if self.__fsm.get_parameters_state() == ParameterState.IN_KEY:
-						self.json_result += f'"{keys_function[index_keys]}":'
-						ids_current_prompt += self.encode(f"\"{keys_function[index_keys]}\":").tolist()[0]
+						self.json_result += f'"{keys_param[index_keys]}":'
+						ids_current_prompt += self.encode(f"\"{keys_param[index_keys]}\":").tolist()[0]
 						index_keys += 1
 						self.__fsm.set_parameters_state(ParameterState.IN_VALUE)
 					elif self.__fsm.get_parameters_state() == ParameterState.IN_VALUE:
 						logits = self.get_logits_from_input_ids(ids_current_prompt)
-						index_max_logit = np.argmax(logits)
+
+						masked_logits = np.full(len(logits), -np.inf)
+						allowed_ids = []
+						for k, v in self.__vocabulary.items():
+							if values_param[index_keys - 1].get("type", "").lower() == "NUMBER".lower():
+							    if k.isdigit():
+							        allowed_ids.append(v)
+							elif values_param[index_keys - 1].get('type', "").lower() == "STRING".lower():
+								if k.isalpha() is True:
+									allowed_ids.append(v)
+						for allowed_id in allowed_ids:
+							masked_logits[allowed_id] = logits[allowed_id]
+						index_max_logit = np.argmax(masked_logits)
 						next_token = self.decode([int(index_max_logit)])
 						ids_current_prompt.append(int(index_max_logit))
 						self.json_result += next_token
 
-						if (self.json_result.rstrip().endswith('"')\
-								or self.json_result.rstrip().endswith(',')) and index_keys < len(keys_function):
+						if ((self.json_result.rstrip().count('"') % 2) == 0\
+								or self.json_result.rstrip().endswith(',')) and index_keys < len(keys_param):
+							if self.json_result.count('"') % 2 == 0:
+								ids_current_prompt += self.encode(', ').tolist()[0]
 							self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 
-						elif index_keys == len(keys_function):
+						elif index_keys == len(keys_param):
 							self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
 				
 					elif self.__fsm.get_parameters_state() == ParameterState.IN_CLOSE:
@@ -170,71 +182,14 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 							self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 							break # continue hereeee.............
 
-					# logits = self.get_logits_from_input_ids(ids_current_prompt + dynamic_ids)
-					# index_max_logit = np.argmax(logits)
-					# dynamic_ids.append(int(index_max_logit))
-					# dynamic_generated += self.decode([int(index_max_logit)])
-					# self.__fsm.set_state(JSONState.IN_END)
-     #####################################################################
-				# if self.__fsm.get_state() != JSONState.BEFORE_PARAMETERS:
-				# 	ids_current_prompt += self.__tokens_before_parameters
-				# 	self.__fsm.goto_next_static_json()
-				# 	self.__fsm.goto_next_state()
-				# else:
-				# 	# must let model generate tokns 1 by 1
-				# 	if self.__fsm.get_state() == JSONState.IN_PARAMETERS and self.__fsm.get_parameters_state() == ParameterState.IN_KEY:
-				# 		if index_keys == len(keys_function):
-				# 			self.__fsm.set_parameters_state(ParameterState.IN_END)
-				# 		else:
-				# 			dynamic_ids += self.encode(f"\"{keys_function[index_keys]}\":").tolist()[0]
-				# 			dynamic_generated += f"\"{keys_function[index_keys]}\":"
-				# 			index_keys += 1
-				# 			self.__fsm.set_parameters_state(ParameterState.IN_VALUE)
-
-				# 	elif self.__fsm.get_state() == JSONState.IN_PARAMETERS and self.__fsm.get_parameters_state() == ParameterState.IN_VALUE:
-				# 		masked_logits = self.get_logits_from_input_ids(
-				# 			ids_current_prompt + dynamic_ids
-				# 		)
-				# 		index_max_logit = np.argmax(masked_logits)
-				# 		next_token_id = int(index_max_logit)
-				# 		next_token = str(self.decode([next_token_id]))
-				# 		dynamic_generated = f"{dynamic_generated}{next_token}"
-				# 		dynamic_ids.append(next_token_id)
-				# 		if dynamic_generated.rstrip().endswith(','):
-				# 			self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-				# 		elif dynamic_generated.rstrip().endswith('}'):
-				# 			ids_current_prompt += dynamic_ids
-					
-				# 	if self.__fsm.get_state() == JSONState.IN_NAME\
-				# 			and self.__filter_decoder.is_found_only_one_function(dynamic_generated, self.__function_names):
-				# 		dynamic_generated = self.__get_only_available_function(dynamic_generated)
-				# 		dynamic_ids = self.encode(dynamic_generated).tolist()[0]
-
-				# 	if self.__fsm.get_state() == JSONState.IN_NAME\
-				# 			and dynamic_generated.rstrip() in self.__function_names_set:
-				# 		ids_current_prompt += dynamic_ids
-				# 		current_function_name = dynamic_generated
-				# 		print("current function:", current_function_name)
-				# 		self.__fsm.goto_next_state()
-				# 		self.__fsm.goto_next_static_json()
-				# 		dynamic_generated = ''
-				# 		dynamic_ids = []
-				# 		continue
-
-				# if self.__fsm.get_state() == JSONState.IN_PARAMETERS\
-				# 		and self.__filter_decoder.is_closed_brackets(dynamic_generated):
-				# 	self.__json_results.append(self.decode(ids_current_prompt[len(self.__prefix_ids):]))
-				# 	print("json_results:", self.__json_results[-1])
-				# 	self.__fsm.set_state(JSONState.IN_NAME)
-				# 	break
-
 		return None
 
-	def get_parameters_keys(self, function_name: str) -> list[str]:
+	def get_parameters_keys(self, function_name: str) -> tuple[list[str] | list[Any]]:
 		for function in self.__functions_definition:
 			if function.name == function_name:
-				parameters = function.parameters
-				return [key for key in function.parameters.keys()]
+				keys = [key for key in function.parameters.keys()]
+				values = [value for value in function.parameters.values()]
+				return (keys, values)
 		return []
 
 	def found_in_function_names(self, part_name: str) -> bool:
