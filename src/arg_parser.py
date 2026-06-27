@@ -11,6 +11,7 @@ class ArgParser:
     def get_output_path(self) -> str:
         return self.__output_path
     
+
     def get_model(self) -> str:
         return self.__model
     
@@ -29,8 +30,3 @@ class ArgParser:
         self.__prompts_path = args.input
         self.__output_path = args.output
         self.__model = args.model
-        print(self.__functions_definition_path)
-        print(self.__prompts_path)
-        print(self.__output_path)
-        print(self.__model)
-        print("-" * 30)

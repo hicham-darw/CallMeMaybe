@@ -3,7 +3,7 @@ from src.json_reader import JSONReader
 from src.json_parser import JSONParser
 from src.json_generator import JSONGenerator
 from src.json_writer import JSONWriter
-
+from pathlib import Path
 
 class JSONManager:
 	"""JSONManager class manage pipeline to generate structured json
@@ -14,12 +14,18 @@ class JSONManager:
 		self.__model = model
 		self.__output_path = output_path
 		self.__stages: list[ProcessingStage]= [
-      		JSONReader(),
-        	JSONParser(),
+      	    JSONReader(),
+        	JSONParser(self.__output_path),
          	JSONGenerator(),
-          	# JSONWriter()
+          	JSONWriter()
         ]
-	
+
+	def create_folder_output(self) -> None:
+		self.__folders = Path(self.__output_path)
+		print(self.__folders) 
+		for subdir in self.__folders.iterdir():
+			if subdir.is_dir():
+				print(subdir)
 	def get_stages(self):
 		return self.__stages
 
@@ -29,3 +35,8 @@ class JSONManager:
 	def generate_json_file(self):
 		for stage in self.__stages:
 			data = stage.execute()
+
+
+if __name__ == '__main__':
+	manager = JSONManager("", "", "", "data/input/darwin.txt")
+	print(manager.create_folder_output())
