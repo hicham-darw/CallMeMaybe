@@ -19,6 +19,7 @@ class PromptBuilder:
         	- output ONLY valid JSON. NO EXTRA TEXT, NO EXPLANATION, NO MARKDOWN.
         	- never invent functions that are not listed above
         	- extract values from the user prompt accurately
+		- fill parameters value from user prompt
         	- ONLY JSON STRUCTURE	
         EXAMPLE OUTPUT:
            if match one in AVAILABLE FUNCTIONS:
@@ -30,8 +31,8 @@ class PromptBuilder:
            else:
         	{{
         		"prompt": "<USER PROMPT HERE>",
-        		"name": null,
-        		"parameters": null,
+        		"name": "null",
+        		"parameters": null
         	}}
 
         """

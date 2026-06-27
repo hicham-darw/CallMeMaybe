@@ -1,5 +1,7 @@
+from typing import Any
 import numpy as np
 from src.state import JSONState
+
 
 class FilterDecoder:
 
@@ -45,10 +47,16 @@ class FilterDecoder:
             return True
         return False
 
-    def is_closed_brackets(self, json_str: str) -> bool:
-        json_str = json_str.strip()
-        if not json_str:
+    def is_closed_brackets(self, json_str: Any) -> bool:
+        stack = []
+        for char in json_str:
+            if char == '{':
+                stack.append('{')
+            elif char == '}' and stack:
+                stack.pop()
+            elif char == '}' and not stack:
+                return False
+        if stack:
             return False
-        if json_str[-1] == '}':
-            return True
-        return False
+        return True
+                
