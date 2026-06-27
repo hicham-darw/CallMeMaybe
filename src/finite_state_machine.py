@@ -31,6 +31,11 @@ class FiniteStateMachine:
             return True
         return False
 
+    def reinitial_stats(self) -> None:
+        self.set_state(JSONState.BEFORE_PROMPT)
+        self.set_static_json(JSONStatic.STR_BEFORE_PROMPT)
+        self.set_parameters_state(ParameterState.IN_KEY)
+
     def is_closed_json(self, json_params: str) -> bool:
         json_params = json_params.strip()
         if json_params[0] == '{' and json_params[-1] == '}':
