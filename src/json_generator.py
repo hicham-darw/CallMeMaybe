@@ -75,7 +75,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 	def __generate_tokens_in_prompt(self) -> None:
 		"""generate token in state IN_PROMPT"""
 		self.__ids_current_prompt += self.encode(self.__current_prompt + "\", ").tolist()[0]
-		self.__json_result += self.__current_prompt + "\", "
+		self.__json_result += self.__current_prompt.replace("\"", "'") + "\", "
 		self.__fsm.set_state(JSONState.BEFORE_NAME)
 
 	def __generate_tokens_before_name(self) -> None:
@@ -106,12 +106,14 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__dynamic_generated += self.decode([int(index_max_logit)])
 		if self.__filter_decoder.is_found_only_one_function(self.__dynamic_generated, self.__function_names):
 			self.__dynamic_generated = self.__get_only_available_function(self.__dynamic_generated)
+			self.__dynamic_generated = self.__dynamic_generated
 			self.__json_result += self.__dynamic_generated
 			self.__current_function_name = self.__dynamic_generated
 			self.__dynamic_ids = self.encode(self.__dynamic_generated).tolist()[0]
 			self.__ids_current_prompt += self.__dynamic_ids
 			self.__dynamic_ids = []
 			self.__dynamic_generated = ''
+			
 			self.__fsm.set_state(JSONState.BEFORE_PARAMETERS)
 
 	
@@ -242,7 +244,11 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			self.__generate()
 			print(f"json_result after  : {self.__json_result}")
 			self.__json_results.append(self.__json_result)
-		return self.__json_results
+
+		return {
+			'json_results': self.__json_results,
+			'output_path': data.get('output_path', '')
+		}
 
 	def __get_parameters_keys(self, function_name: str) -> list[Any]:
 		""" get keys of function from functions definition"""

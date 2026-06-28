@@ -2,23 +2,28 @@ import argparse
 
 
 class ArgParser:
-
+    """ ArgParser Class parse for user input argument"""
     
     # getters
     def get_prompts_path(self) -> str:
+        """ get prompts path json file"""
         return self.__prompts_path
     
     def get_output_path(self) -> str:
+        """ get output path from user """
         return self.__output_path
     
 
     def get_model(self) -> str:
+        """ get model from user  """
         return self.__model
     
     def get_functions_definition_path(self) -> str:
+        """ functions schema path for functions definition"""
         return self.__functions_definition_path
 
     def initial_arguments(self) -> None:
+        """ initial full argument with default values"""
         parser = argparse.ArgumentParser()
         parser.add_argument("--functions_definition", default="data/input/functions_definition.json")
         parser.add_argument("--input", default="data/input/function_calling_tests.json")
