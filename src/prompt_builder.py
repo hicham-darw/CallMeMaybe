@@ -19,7 +19,7 @@ class PromptBuilder:
         	- output ONLY valid JSON. NO EXTRA TEXT, NO EXPLANATION, NO MARKDOWN.
         	- never invent functions that are not listed above
         	- extract values from the user prompt accurately
-		- fill parameters value from user prompt
+		- Parameters with correct value for function calling
         	- ONLY JSON STRUCTURE	
         EXAMPLE OUTPUT:
            if match one in AVAILABLE FUNCTIONS:

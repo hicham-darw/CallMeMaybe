@@ -166,11 +166,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			for allowed_id in self.__ids_for_numbers:
 				masked_logits[allowed_id] = logits[allowed_id]
 			return masked_logits
-		# elif type_mask == 'string':
-		# 	for allowed_id in self.__ids_for_strings:
-		# 		masked_logits[allowed_id] = logits[allowed_id]
-
-		# 	return masked_logits
 		return logits
 
 	def __generate_tokens_in_value_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
@@ -186,12 +181,15 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			logits = self.get_logits_from_input_ids(self.__ids_current_prompt + self.__dynamic_ids)
 			masked_logits = self.__masked_logits_by_type(logits, dict_schema.get('type', ''))
 			index_max_logit = np.argmax(masked_logits)
-			print(f"in generating: {self.__dynamic_generated}")
 			self.__dynamic_generated += self.decode([index_max_logit])
 			self.__dynamic_ids.append(int(index_max_logit))
+			print(f"in generating: {self.__dynamic_generated}")
 		type_param = dict_schema.get('type', '')
 		if type_param == 'number' or type_param == 'integer' or type_param == 'float':
-			stripped_number = self.__dynamic_generated
+			print(f"in NUMBER: {self.__dynamic_generated}")
+			stripped_number = self.__dynamic_generated.rstrip().strip("\"")
+			if index_item - 1 < len(parameters):
+				stripped_number += ','
 			self.__json_result += stripped_number
 			self.__ids_current_prompt += self.encode(stripped_number).tolist()[0]
 
@@ -206,8 +204,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		elif index_item - 1 == len(parameters):
 			self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
 		elif index_item - 1 < len(parameters):
-			self.__json_result += ", "
-			self.__ids_current_prompt += self.encode(", ").tolist()[0]
 			self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 		
 		return logits
