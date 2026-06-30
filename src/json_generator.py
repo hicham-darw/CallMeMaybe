@@ -58,9 +58,9 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		for token_id in self.__vocabulary.values():
 			decoded_id = self.decode(token_id)
-			if decoded_id.isascii() and not decoded_id in ",}":
+			if decoded_id.isascii() and ',' not in decoded_id and '}' not in decoded_id:
 				self.__ids_for_strings.append(token_id)
-			if decoded_id.isdigit() or decoded_id in ".\"":
+			if (decoded_id.isdigit() or decoded_id in ".\"") and ',' not in decoded_id and '}' not in decoded_id:
 				self.__ids_for_numbers.append(token_id)
 
 	def __prepare_data(self, data: Any) -> None:
@@ -166,11 +166,11 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			for allowed_id in self.__ids_for_numbers:
 				masked_logits[allowed_id] = logits[allowed_id]
 			return masked_logits
-		elif type_mask == 'string':
-			for allowed_id in self.__ids_for_strings:
-				masked_logits[allowed_id] = logits[allowed_id]
+		# elif type_mask == 'string':
+		# 	for allowed_id in self.__ids_for_strings:
+		# 		masked_logits[allowed_id] = logits[allowed_id]
 
-			return masked_logits
+		# 	return masked_logits
 		return logits
 
 	def __generate_tokens_in_value_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
@@ -186,17 +186,17 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			logits = self.get_logits_from_input_ids(self.__ids_current_prompt + self.__dynamic_ids)
 			masked_logits = self.__masked_logits_by_type(logits, dict_schema.get('type', ''))
 			index_max_logit = np.argmax(masked_logits)
-			
+			print(f"in generating: {self.__dynamic_generated}")
 			self.__dynamic_generated += self.decode([index_max_logit])
 			self.__dynamic_ids.append(int(index_max_logit))
 		type_param = dict_schema.get('type', '')
 		if type_param == 'number' or type_param == 'integer' or type_param == 'float':
-			stripped_number = self.__dynamic_generated.strip().strip('}').strip(",").strip("\"")
+			stripped_number = self.__dynamic_generated
 			self.__json_result += stripped_number
 			self.__ids_current_prompt += self.encode(stripped_number).tolist()[0]
 
 		else:
-			stripped_value = self.__dynamic_generated.strip().rstrip(",").rstrip("}")
+			stripped_value = self.__dynamic_generated
 			self.__json_result += self.__dynamic_generated
 			self.__ids_current_prompt += self.__dynamic_ids
 
@@ -213,13 +213,10 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		return logits
 
 	def __generate_tokens_in_close_parameters(self) -> None:
+		bracket_id = self.encode("}")
 		while not self.__filter_decoder.is_closed_brackets(self.__json_result):
-
-			logits = self.get_logits_from_input_ids(self.__ids_current_prompt)
-			masked_logits = self.__masked_logits_by_type(logits, 'in_close')
-			index_max_logit = np.argmax(masked_logits)
-			self.__ids_current_prompt.append(int(index_max_logit))
-			self.__json_result += self.decode([int(index_max_logit)])
+			self.__json_result += "}"
+			self.__ids_current_prompt.append(int(bracket_id))
 		self.__fsm.set_state(JSONState.IN_END)
 
 	def __generate_tokens_in_parameters(self) -> None:
