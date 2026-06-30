@@ -25,8 +25,12 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__json_results: list[str] = list()
 
 		self.__prompt_builder = PromptBuilder()
+
 		self.__fsm = FiniteStateMachine()
 		self.__filter_decoder = FilterDecoder()
+		self.__ids_for_strings = []
+		self.__ids_for_numbers = []
+
 
 		self.__index_key_param: int = 0
 		self.__current_function_name: str = ''
@@ -44,14 +48,29 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			function_ids = self.encode(name).tolist()[0]
 			for token_id in function_ids:
 				self.__ids_function_names_set.add(token_id)
-		
+
+	def __load_vocabulary(self) -> None:
+		vocab_path = self.get_path_to_vocab_file()
+		with open(vocab_path) as file:
+			self.__vocabulary = json.load(file)
+
+	def __init_ids_for_parameters(self) -> None:
+
+		for token_id in self.__vocabulary.values():
+			decoded_id = self.decode(token_id)
+			if decoded_id.isascii() and not decoded_id in ",}":
+				self.__ids_for_strings.append(token_id)
+			if decoded_id.isdigit() or decoded_id in ".\"":
+				self.__ids_for_numbers.append(token_id)
 
 	def __prepare_data(self, data: Any) -> None:
 		"""prepare data for generating json file"""		
+
 		self.__functions_definition = data['functions_definition']
 		self.__prompts = data['prompts']
 		self.__prepare_function_names()
 
+		self.__load_vocabulary()
 		self.__prompt_builder.set_available_functions(self.__functions_definition)
 
 		tokens_before_prompt = self.encode(JSONStatic.STR_BEFORE_PROMPT.value).tolist()[0]
@@ -61,6 +80,8 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__filter_decoder.set_tokens_before_prompt(tokens_before_prompt)
 		self.__filter_decoder.set_tokens_before_name(tokens_before_name)
 		self.__filter_decoder.set_tokens_before_parameters(tokens_before_parameters)
+		
+		self.__init_ids_for_parameters()
 		
 		self.__prefix_ids: list[int] = self.encode(self.__prompt_builder()).tolist()[0]
 
@@ -139,16 +160,18 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		
 		if type_mask == '':
 			return logits
-		
+
 		masked_logits = np.full(len(logits), -np.inf)
-		for index_logit, logit in enumerate(logits):
-			decoded = self.decode([index_logit])
-			if type_mask == 'string' and (decoded.isascii()):
-				masked_logits[index_logit] = logits[index_logit]
-			elif type_mask == 'number' and (decoded.isdigit() or decoded in '."'):
-				masked_logits[index_logit] = logits[index_logit]
-		
-		return masked_logits
+		if type_mask == 'number' or type_mask == 'float' or type_mask == 'integer':
+			for allowed_id in self.__ids_for_numbers:
+				masked_logits[allowed_id] = logits[allowed_id]
+			return masked_logits
+		elif type_mask == 'string':
+			for allowed_id in self.__ids_for_strings:
+				masked_logits[allowed_id] = logits[allowed_id]
+
+			return masked_logits
+		return logits
 
 	def __generate_tokens_in_value_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
 		"""generate tokens in state IN_PARAMETERS IN_VALUE"""
@@ -166,25 +189,38 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			
 			self.__dynamic_generated += self.decode([index_max_logit])
 			self.__dynamic_ids.append(int(index_max_logit))
-		if dict_schema.get('type', '') == 'number':
-			self.__json_result += self.__dynamic_generated.strip('"')
-			self.__ids_current_prompt += self.__dynamic_ids[1:-1]
+		type_param = dict_schema.get('type', '')
+		if type_param == 'number' or type_param == 'integer' or type_param == 'float':
+			stripped_number = self.__dynamic_generated.strip().strip('}').strip(",").strip("\"")
+			self.__json_result += stripped_number
+			self.__ids_current_prompt += self.encode(stripped_number).tolist()[0]
+
 		else:
+			stripped_value = self.__dynamic_generated.strip().rstrip(",").rstrip("}")
 			self.__json_result += self.__dynamic_generated
 			self.__ids_current_prompt += self.__dynamic_ids
-		
+
+	
 		if self.__filter_decoder.is_closed_brackets(self.__json_result):
 			self.__fsm.set_state(JSONState.IN_END)
-		elif index_item - 1 == len(parameters) or self.__filter_decoder.is_closed_brackets(self.__json_result):
-			self.__json_result += "}}"
-			self.__fsm.set_state(JSONState.IN_END)
-			return None
-		elif index_item - 1 < len(parameters) and dict_schema.get('type', '') == 'number':
+		elif index_item - 1 == len(parameters):
+			self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
+		elif index_item - 1 < len(parameters):
 			self.__json_result += ", "
 			self.__ids_current_prompt += self.encode(", ").tolist()[0]
 			self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 		
-		return None
+		return logits
+
+	def __generate_tokens_in_close_parameters(self) -> None:
+		while not self.__filter_decoder.is_closed_brackets(self.__json_result):
+
+			logits = self.get_logits_from_input_ids(self.__ids_current_prompt)
+			masked_logits = self.__masked_logits_by_type(logits, 'in_close')
+			index_max_logit = np.argmax(masked_logits)
+			self.__ids_current_prompt.append(int(index_max_logit))
+			self.__json_result += self.decode([int(index_max_logit)])
+		self.__fsm.set_state(JSONState.IN_END)
 
 	def __generate_tokens_in_parameters(self) -> None:
 		"""generate tokens in state IN_PARAMETERS"""
@@ -195,14 +231,16 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		elif self.__fsm.get_parameters_state() == ParameterState.IN_VALUE:
 			self.__generate_tokens_in_value_parameters(function_parameters)
+		
+		elif self.__fsm.get_parameters_state() == ParameterState.IN_CLOSE:
+			self.__generate_tokens_in_close_parameters()
 		return None
 
 	def __generate(self) -> None:
 		"""function generate each json output separate"""
 		while not self.__fsm.is_in_end_state():
 			print(f">>: {self.__json_result}")
-			print("decode json:", self.decode(self.__ids_current_prompt[len(self.__prefix_ids):]))
-			print("STATE:", self.__fsm.get_state())
+			print(f"parameter state:", self.__fsm.get_parameters_state())
 			if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
 				self.__generate_tokens_before_prompt()
 

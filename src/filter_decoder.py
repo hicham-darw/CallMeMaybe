@@ -31,7 +31,7 @@ class FilterDecoder:
 
     def get_tokens_before_parameters(self) -> list[int]:
         return self.__tokens_before_params
-        
+
     def is_in_functions(self, dynamic_str: str, function_names: list[str]) -> bool:
         for function_name in function_names:
             if function_name.startswith(dynamic_str):
