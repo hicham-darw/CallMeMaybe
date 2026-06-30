@@ -1,5 +1,5 @@
 import argparse
-
+from sys import exit, stderr
 
 class ArgParser:
     """ ArgParser Class parse for user input argument"""
@@ -29,9 +29,22 @@ class ArgParser:
         parser.add_argument("--input", default="data/input/function_calling_tests.json")
         parser.add_argument("--output", default="data/output/function_calling_results.json")
         parser.add_argument("--model", default="Qwen/Qwen3-0.6B")
-
+        
         args = parser.parse_args()
-        self.__functions_definition_path = args.functions_definition
-        self.__prompts_path = args.input
-        self.__output_path = args.output
-        self.__model = args.model
+	
+        self.set_functions_definition_path(args.functions_definition)
+        self.set_prompts_path(args.input)
+        self.set_output_path(args.output)
+        self.set_model(args.model)
+
+    def set_functions_definition_path(self, functions_definition_path: str) -> None:
+        self.__functions_definition_path = functions_definition_path
+
+    def set_prompts_path(self, prompts_path: str) -> None:
+        self.__prompts_path = prompts_path
+
+    def set_output_path(self, output_path: str) -> None:
+        self.__output_path = output_path
+
+    def set_model(self, model: str) -> None:
+        self.__model = model

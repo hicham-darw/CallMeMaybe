@@ -1,53 +1,62 @@
 from typing import Any
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, Field
 from typing_extensions import Self
+from src.enums import FunctionDefinitionKeys
 
 
 class PromptSchema(BaseModel):
-    prompt: dict[str, str]
+    """ PromptSchema Model for each prompt"""
+    prompt: dict[str, str] = Field(max_length=1, alias="prompt")
 
     @model_validator(mode='after')
     def validate_prompt_schema(self) -> Self:
-        if len(self.prompt.keys()) != 1:
-            raise Exception("Error dictionary must have one key and value")
-
-        prompt_value = self.prompt.get('prompt', None)
-        if not isinstance(prompt_value, str):
-            raise Exception("Error: value in data['prompt'] must be string\n")
+        keys = self.prompt.keys()
+        if len(keys) != 1:
+            raise ValueError("Error dictionary must contain one pair.")
+        if list(self.prompt)[0] != 'prompt':
+            raise ValueError("Error: key prompt must always prompt.")
         return self
 
+
 class FunctionDefinitionSchema(BaseModel):
-    name: str
-    description: str
-    parameters: dict[str, dict[str, Any]]
-    returns: dict[str, str]
+    """ model functiondefinition schema for every function schema"""
+    name: str = Field(max_length=100, min_length=3, pattern=r"^[A-Za-z_.]+$", alias="name")
+    description: str = Field(max_length=300, min_length=10, alias="description")
+    parameters: dict[str, dict[str, str]] = Field(max_length=10, min_length=0, alias="parameters")
+    returns: dict[str, str] = Field(max_length=1, alias="returns")
 
     @model_validator(mode='before')
     def validate_raw_data(cls, data: Any) -> Any:
+        """ validate raw data before create instance native dictionary """
         if not isinstance(data, dict):
-            raise Exception("data in validator not a dictionary.")
-        if data.get('name', None) is None:
-            raise Exception("Error: Function definition not found key 'name'")
-        elif data.get('description', None) is None:
-            raise Exception("Error: Function definition not found key 'description'")
-        elif data.get('parameters', None) is None:
-            raise Exception("Error: Function definition not found key 'parameters'")
-        elif data.get('returns', None) is None:
-            raise  Exception("Error: Function definition not found key 'returns'")
+            raise ValueError("Error: function_definition schema must be dictionary.")
+
+        all_keys = [key for key in data.keys()]
+        for key in all_keys:
+            if key not in FunctionDefinitionKeys:
+                raise ValueError(f"Error: Invalid key {key} must be \"type\"")
         return data
 
     @model_validator(mode='after')
     def validate_function_definition_schema(self) -> Self:
-        for val_param in self.parameters.values():
-            if len(val_param.keys()) != 1:
-                raise Exception("key of each value in parameters accept only 'type' key.")
-            for typ in val_param.keys():
-                if typ != 'type':
-                    raise Exception("key of each value in parameters accept only 'type' key.")
-        
-        if len(self.returns.keys()) != 1:
-            raise Exception("return dictionary contain only 1 key and value")
+        """ validate function definition after object created successfully"""
+        self.__validate_parameters()
+        self.__validate_returns()
+        return self
+    
+    def __validate_returns(self) -> None:
+        "validate returns has only one item and all keys is \"type\""
+        if len(self.returns) > 1:
+            raise ValueError("Error: returns dictionary must contain 1 item {key: value}")
+
         for key in self.returns.keys():
             if key != "type":
-                raise Exception('key type in returns not found!')
-        return self
+                raise KeyError(f"Error: in returns {key} in FunctionDefinitionSchema must be \"type\".")
+
+    def __validate_parameters(self) -> None:
+        """validate parameters keys is valid"""
+        for value_dict in self.parameters.values():
+            for key in value_dict.keys():
+                if key != "type":
+                    raise KeyError("Error: keys in parameters functions_definition keys must be \"type\".")
+        

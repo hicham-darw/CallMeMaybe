@@ -47,7 +47,7 @@ class FilterDecoder:
             return True
         return False
 
-    def is_closed_brackets(self, json_str: Any) -> bool:
+    def is_closed_brackets(self, json_str: str) -> bool:
         stack = []
         for char in json_str:
             if char == '{':
