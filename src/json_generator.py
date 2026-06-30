@@ -143,7 +143,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		masked_logits = np.full(len(logits), -np.inf)
 		for index_logit, logit in enumerate(logits):
 			decoded = self.decode([index_logit])
-			if type_mask == 'string' and (decoded.isalpha() or decoded.isspace() or decoded in '".'):
+			if type_mask == 'string' and (decoded.isascii()):
 				masked_logits[index_logit] = logits[index_logit]
 			elif type_mask == 'number' and (decoded.isdigit() or decoded in '."'):
 				masked_logits[index_logit] = logits[index_logit]
@@ -160,119 +160,49 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__dynamic_ids = self.encode("\"").tolist()[0]
 		self.__dynamic_generated = "\""
 		while (self.__dynamic_generated.count("\"") != 2):
-			print(self.decode(self.__ids_current_prompt[len(self.__prefix_ids):]))
 			logits = self.get_logits_from_input_ids(self.__ids_current_prompt + self.__dynamic_ids)
 			masked_logits = self.__masked_logits_by_type(logits, dict_schema.get('type', ''))
 			index_max_logit = np.argmax(masked_logits)
 			
-			# self.__digit_counter += 1
-			print(f"BEFORE:json_result: {self.__json_result}")
-			print(f"BEFOREdynamic_generated: {self.__dynamic_generated}")
-
 			self.__dynamic_generated += self.decode([index_max_logit])
 			self.__dynamic_ids.append(int(index_max_logit))
-			print(f"AFTER:json_result: {self.__json_result}")
-			print(f"AFTER:dynamic_generated: {self.__dynamic_generated}")
-
-		self.__json_result += self.__dynamic_generated.strip('"')
-		self.__ids_current_prompt += self.__dynamic_ids[1:-1]
-		print("@" * 80)
-		print("self.__json_result:", self.__json_result)
-		print("ids:", self.__ids_current_prompt)
-		sleep(20)	
-		#print("index_item", index_item)
-		#print("len(parameters)", len(parameters))
-		if index_item - 1 == len(parameters):
+		if dict_schema.get('type', '') == 'number':
+			self.__json_result += self.__dynamic_generated.strip('"')
+			self.__ids_current_prompt += self.__dynamic_ids[1:-1]
+		else:
+			self.__json_result += self.__dynamic_generated
+			self.__ids_current_prompt += self.__dynamic_ids
+		
+		if self.__filter_decoder.is_closed_brackets(self.__json_result):
+			self.__fsm.set_state(JSONState.IN_END)
+		elif index_item - 1 == len(parameters) or self.__filter_decoder.is_closed_brackets(self.__json_result):
 			self.__json_result += "}}"
 			self.__fsm.set_state(JSONState.IN_END)
-		else:
-			self.__json_result += ","
-			self.__ids_current_prompt += self.encode(",").tolist()[0]
+			return None
+		elif index_item - 1 < len(parameters) and dict_schema.get('type', '') == 'number':
+			self.__json_result += ", "
+			self.__ids_current_prompt += self.encode(", ").tolist()[0]
 			self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-		print("self.__json_result:", self.__json_result)
-
-#		# elif dict_schema.get('type', '') == "number":
-#		# 	pass
-		# if key_param == 'source_string' or key_param == "string":
-		# 	quoted_string_in_prompt: list[Any] = re.findall(r'["\'][^"]+["\']', self.__current_prompt)
-		# 	if quoted_string_in_prompt:
-		# 		taller_string: str = max(quoted_string_in_prompt, key=len)
-		# 		taller_string = taller_string.strip('"').strip("'")
-		# 		self.__ids_current_prompt += self.encode("\"" + taller_string + "\"").tolist()[0]
-		# 		self.__ids_current_prompt += self.encode(", ").tolist()[0]
-		# 		self.__json_result += taller_string + '", '
-		# 		self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-		# 		return None
-		# 	else:
-		# 		logits = self.get_logits_from_input_ids(self.__ids_current_prompt)
-		# 		masked_logits = np.full(len(logits), -np.inf)
-		# 		allowed_ids = self.encode(self.__current_prompt)
-		# 		for each_id in allowed_ids:
-		# 			masked_logits[each_id] = logits[each_id]
-		# 		index_max_logit = np.argmax(masked_logits)
-		# 		self.__ids_current_prompt.append(int(index_max_logit))
-		# 		self.__json_result += self.decode([int(index_max_logit)])
-		# 		return None
-		# logits = self.get_logits_from_input_ids(self.__ids_current_prompt)
-		# index_max_logit = np.argmax(logits)
-		# self.__ids_current_prompt.append(int(index_max_logit))
-		# self.__json_result += self.decode([int(index_max_logit)])
+		
 		return None
 
-	def __generate_tokens_in_parameters(self) -> bool:
+	def __generate_tokens_in_parameters(self) -> None:
 		"""generate tokens in state IN_PARAMETERS"""
 		function_parameters = self.__get_parameters_function(self.__current_function_name[:-3]) # rm stripping current_function_name
 		if self.__fsm.get_parameters_state() == ParameterState.IN_KEY:
 			self.__generate_tokens_in_key_parameters(function_parameters)
 			self.__index_key_param += 1
 
-#		elif self.__fsm.get_parameters_state() == ParameterState.IN_VALUE\
-#				and (self.__index_key_param - 1) < len(function_parameters):
 		elif self.__fsm.get_parameters_state() == ParameterState.IN_VALUE:
-			print(f"function parameters: {function_parameters}")
 			self.__generate_tokens_in_value_parameters(function_parameters)
-#			if len(self.__dynamic_generated) >= self.__max_number_digits and self.__index_key_param < len(function_parameters):
-#				nbr = float(self.__dynamic_generated)
-#				self.__json_result += str(nbr) + ","
-#				self.__ids_current_prompt += self.encode(str(nbr) + ',').tolist()[0]
-#				self.__dynamic_generated = ''
-#				self.__dynamic_ids = []
-#				self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-#			elif len(self.__dynamic_generated) >= self.__max_number_digits and self.__index_key_param >= len(function_parameters):
-#				nbr = float(self.__dynamic_generated)
-#				self.__json_result += str(nbr) + "}}"
-#				self.__ids_current_prompt += self.encode(str(nbr) + '}}').tolist()[0]
-#				self.__dynamic_ids = []
-#				self.__dynamic_generated = ''
-#				self.__fsm.set_state(JSONState.IN_END)
-	
-			#if self.__filter_decoder.is_closed_brackets(self.__json_result)\
-        		#	and self.__index_key_param == len(function_parameters):
-			#	self.__fsm.reinitial_stats()
-			#	return False
-
-			#elif (self.__json_result.rstrip()[-1] == ',' or self.__json_result.rstrip()[-2:-1] == '.') and self.__index_key_param < len(function_parameters):
-			#	self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-		return True
-
-	def __generate_tokens_in_close(self) -> bool:
-		""" generate token in state IN_CLOSE"""
-		logits = self.get_logits_from_input_ids(self.__ids_current_prompt)
-		index_max_logit = np.argmax(logits)
-		self.__ids_current_prompt.append(int(index_max_logit))
-		self.__json_result += self.decode([int(index_max_logit)])
-		if self.__filter_decoder.is_closed_brackets(self.__json_result):
-			self.__json_results.append(self.__json_result)
-			self.__fsm.set_static_json(JSONStatic.STR_BEFORE_PROMPT)
-			self.__fsm.set_state(JSONState.BEFORE_PROMPT)
-			self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-			return True
-		return False
+		return None
 
 	def __generate(self) -> None:
 		"""function generate each json output separate"""
 		while not self.__fsm.is_in_end_state():
 			print(f">>: {self.__json_result}")
+			print("decode json:", self.decode(self.__ids_current_prompt[len(self.__prefix_ids):]))
+			print("STATE:", self.__fsm.get_state())
 			if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
 				self.__generate_tokens_before_prompt()
 
@@ -289,21 +219,17 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				self.__generate_tokens_before_parameters()
 
 			elif self.__fsm.get_state() == JSONState.IN_PARAMETERS:
-				if not self.__generate_tokens_in_parameters():
-					break
+				self.__generate_tokens_in_parameters()
 
-			elif self.__fsm.get_parameters_state() == ParameterState.IN_END:
-				break
 	def __reinitial_data_for_each_prompt(self, user_prompt) -> None:
 		"""" reinitial data for next prompt"""
-		self.__fsm.set_state(JSONState.BEFORE_NAME)
-		self.__fsm.set_static_json(JSONStatic.STR_BEFORE_NAME)
+		self.__fsm.set_state(JSONState.BEFORE_PROMPT)
+		self.__fsm.set_static_json(JSONStatic.STR_BEFORE_PROMPT)
 		self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 
 		self.__current_prompt = user_prompt
 		self.__ids_current_prompt = self.__prefix_ids[:]
-		self.__max_number_digits = 5
-		self.__digit_counter = 0
+		
 		self.__index_key_param = 0
 		self.__current_function_name = ''
 		self.__dynamic_generated = ''
@@ -320,9 +246,8 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			self.__reinitial_data_for_each_prompt(
 				prompt_schema.prompt['prompt']
 			)
-			print(f"json_result before : {self.__json_result}")
 			self.__generate()
-			print(f"json_result after  : {self.__json_result}")
+			print(f"json result @: {self.__json_result}")
 			self.__json_results.append(self.__json_result)
 
 		return {
