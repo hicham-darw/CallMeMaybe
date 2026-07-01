@@ -223,6 +223,7 @@ class JSONGenerator(ExecutingStage):
                     self.__dynamic_generated + self.__model.decode([index_id])
                 ):
                     masked_logits[index_id] = logits[index_id]
+            return masked_logits
 
         return np.array(logits, dtype=np.float32)
 
