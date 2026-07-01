@@ -1,18 +1,15 @@
 from typing import Any
-from src.json_reader import JSONReader
-from src.json_writer import JSONWriter
-from src.arg_parser import ArgParser
-from src.validator import PromptSchema
-from src.json_manager import JSONManager
+from src.JSONReader import JSONReader
+from src.JSONWriter import JSONWriter
+from src.ArgParser import ArgParser
+from src.Validator import PromptSchema
+from src.JSONManager import JSONManager
 from src.Exceptions import ParsingError, ReadingError
-import time
 
 
 if __name__ == '__main__':
     
-    # parser her
     start = time.time()
-    print(start)
 
     arg_parser = ArgParser()
     arg_parser.initial_arguments()
@@ -32,4 +29,4 @@ if __name__ == '__main__':
         print(e)
     print('FIN:', '#' * 40)
     end = time.time()
-    print("time:", end - start)
+    print("time:", (end - start) / 60)

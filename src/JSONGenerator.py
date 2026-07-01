@@ -2,7 +2,7 @@ from typing import Any
 from src.ExecutingStage import ExecutingStage
 from src.PromptBuilder import PromptBuilder
 from src.Enums import JSONState
-from llm_sdk.llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model
 import numpy as np
 from numpy.typing import NDArray
 from src.FiniteStateMachine import FiniteStateMachine
@@ -51,12 +51,13 @@ class JSONGenerator(ExecutingStage):
 			self.__vocabulary = json.load(file)
 
 	def __init_ids_for_parameters(self) -> None:
-
+		""" initial ids for mask ids"""
 		for token_id in self.__vocabulary.values():
 			decoded_id = self.__model.decode(token_id)
 			if decoded_id.isascii() and ',' not in decoded_id and '}' not in decoded_id:
 				self.__ids_for_strings.append(token_id)
-			if (decoded_id.isdigit() or decoded_id in ".\"") and ',' not in decoded_id and '}' not in decoded_id:
+			if (decoded_id.isdigit() or decoded_id == '-' or (decoded_id in ".\"") and ',' not in decoded_id\
+    				and '}' not in decoded_id) :
 				self.__ids_for_numbers.append(token_id)
 
 	def __prepare_data(self, data: Any) -> None:
