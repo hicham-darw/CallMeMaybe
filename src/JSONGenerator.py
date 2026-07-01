@@ -1,22 +1,17 @@
 from typing import Any
-from src.processing_stage import ProcessingStage
-from transformers import AutoModel
-from src.validator import FunctionDefinitionSchema
-from src.prompt_builder import PromptBuilder
-from src.state import JSONState
+from src.ExecutingStage import ExecutingStage
+from src.PromptBuilder import PromptBuilder
+from src.Enums import JSONState
 from llm_sdk.llm_sdk import Small_LLM_Model
 import numpy as np
-from src.finite_state_machine import FiniteStateMachine
-from src.filter_decoder import FilterDecoder
-from src.state import JSONStatic, ParameterState
+from numpy.typing import NDArray
+from src.FiniteStateMachine import FiniteStateMachine
+from src.FilterDecoder import FilterDecoder
+from src.Enums import JSONStatic, ParameterState
 import json
-import re
-
-import sys
-import time
 
 
-class JSONGenerator(Small_LLM_Model, ProcessingStage):
+class JSONGenerator(ExecutingStage):
 	"""JSONGenerator generate json by llm with constrained decoding
 	"""
 	def __init__(self) -> None:
@@ -28,8 +23,8 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 		self.__fsm = FiniteStateMachine()
 		self.__filter_decoder = FilterDecoder()
-		self.__ids_for_strings = []
-		self.__ids_for_numbers = []
+		self.__ids_for_strings: list[int] = []
+		self.__ids_for_numbers: list[int] = []
 
 
 		self.__index_key_param: int = 0
@@ -45,19 +40,20 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		)
 		self.__ids_function_names_set: set[int] = set()
 		for name in self.__function_names:
-			function_ids = self.encode(name).tolist()[0]
+			function_ids = self.__model.encode(name).tolist()[0]
 			for token_id in function_ids:
 				self.__ids_function_names_set.add(token_id)
 
 	def __load_vocabulary(self) -> None:
-		vocab_path = self.get_path_to_vocab_file()
+		"""load vocabulary for constrained decoding"""
+		vocab_path = self.__model.get_path_to_vocab_file()
 		with open(vocab_path) as file:
 			self.__vocabulary = json.load(file)
 
 	def __init_ids_for_parameters(self) -> None:
 
 		for token_id in self.__vocabulary.values():
-			decoded_id = self.decode(token_id)
+			decoded_id = self.__model.decode(token_id)
 			if decoded_id.isascii() and ',' not in decoded_id and '}' not in decoded_id:
 				self.__ids_for_strings.append(token_id)
 			if (decoded_id.isdigit() or decoded_id in ".\"") and ',' not in decoded_id and '}' not in decoded_id:
@@ -73,9 +69,9 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		self.__load_vocabulary()
 		self.__prompt_builder.set_available_functions(self.__functions_definition)
 
-		tokens_before_prompt = self.encode(JSONStatic.STR_BEFORE_PROMPT.value).tolist()[0]
-		tokens_before_name = self.encode(JSONStatic.STR_BEFORE_NAME.value).tolist()[0]
-		tokens_before_parameters = self.encode(JSONStatic.STR_BEFORE_PARAMETERS.value).tolist()[0]
+		tokens_before_prompt = self.__model.encode(JSONStatic.STR_BEFORE_PROMPT.value).tolist()[0]
+		tokens_before_name = self.__model.encode(JSONStatic.STR_BEFORE_NAME.value).tolist()[0]
+		tokens_before_parameters = self.__model.encode(JSONStatic.STR_BEFORE_PARAMETERS.value).tolist()[0]
 
 		self.__filter_decoder.set_tokens_before_prompt(tokens_before_prompt)
 		self.__filter_decoder.set_tokens_before_name(tokens_before_name)
@@ -83,7 +79,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		
 		self.__init_ids_for_parameters()
 		
-		self.__prefix_ids: list[int] = self.encode(self.__prompt_builder()).tolist()[0]
+		self.__prefix_ids: list[int] = self.__model.encode(self.__prompt_builder()).tolist()[0]
 
 	# generating
 	def __generate_tokens_before_prompt(self) -> None:
@@ -95,7 +91,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 
 	def __generate_tokens_in_prompt(self) -> None:
 		"""generate token in state IN_PROMPT"""
-		self.__ids_current_prompt += self.encode(self.__current_prompt + "\", ").tolist()[0]
+		self.__ids_current_prompt += self.__model.encode(self.__current_prompt + "\", ").tolist()[0]
 		self.__json_result += self.__current_prompt.replace("\"", "'") + "\", "
 		self.__fsm.set_state(JSONState.BEFORE_NAME)
 
@@ -112,29 +108,30 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			if function_name.startswith(generated):
 				return True
 		return False
-		
+
+	def __add_tokens_of_function_name(self) -> None:
+		"""add tokens when found target function"""
+		self.__dynamic_generated = self.__get_only_available_function(self.__dynamic_generated)
+		self.__dynamic_generated = self.__dynamic_generated
+		self.__json_result += self.__dynamic_generated
+		self.__current_function_name = self.__dynamic_generated
+		self.__dynamic_ids = self.__model.encode(self.__dynamic_generated).tolist()[0]
+		self.__ids_current_prompt += self.__dynamic_ids
+		self.__dynamic_ids = []
+		self.__dynamic_generated = ''
+
 	def __generate_tokens_in_name(self) -> None:
 		"""generate tokens in state IN_NAME"""
 		full_ids = self.__ids_current_prompt + self.__dynamic_ids
-		logits = self.get_logits_from_input_ids(full_ids)
-		masked_logits = np.full(len(logits), -np.inf)
-		for index_id in self.__ids_function_names_set:
-			if self.__is_at_least_one_function(self.__dynamic_generated + self.decode([index_id])):
-				masked_logits[index_id] = logits[index_id]
+		logits = self.__model.get_logits_from_input_ids(full_ids)
+		masked_logits = self.__mask_logits_by_type(logits, 'function_name')
 				
 		index_max_logit = np.argmax(masked_logits)
 		self.__dynamic_ids.append(int(index_max_logit))
-		self.__dynamic_generated += self.decode([int(index_max_logit)])
+		self.__dynamic_generated += self.__model.decode([int(index_max_logit)])
+		
 		if self.__filter_decoder.is_found_only_one_function(self.__dynamic_generated, self.__function_names):
-			self.__dynamic_generated = self.__get_only_available_function(self.__dynamic_generated)
-			self.__dynamic_generated = self.__dynamic_generated
-			self.__json_result += self.__dynamic_generated
-			self.__current_function_name = self.__dynamic_generated
-			self.__dynamic_ids = self.encode(self.__dynamic_generated).tolist()[0]
-			self.__ids_current_prompt += self.__dynamic_ids
-			self.__dynamic_ids = []
-			self.__dynamic_generated = ''
-			
+			self.__add_tokens_of_function_name()			
 			self.__fsm.set_state(JSONState.BEFORE_PARAMETERS)
 
 	
@@ -153,63 +150,71 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 				break
 		
 		self.__json_result += f'"{key_name}": '
-		self.__ids_current_prompt += self.encode(f"\"{key_name}\": ").tolist()[0]
+		self.__ids_current_prompt += self.__model.encode(f"\"{key_name}\": ").tolist()[0]
 		self.__fsm.set_parameters_state(ParameterState.IN_VALUE)
 
-	def __masked_logits_by_type(self, logits: list[float], type_mask: str) -> list[float]:
-		
+	def __mask_logits_by_type(self, logits: list[float], type_mask: str) -> NDArray[np.float32]:
+		"""mask logits by type mask """
 		if type_mask == '':
-			return logits
+			return np.array(logits, dtype=np.float32)
 
 		masked_logits = np.full(len(logits), -np.inf)
+
 		if type_mask == 'number' or type_mask == 'float' or type_mask == 'integer':
 			for allowed_id in self.__ids_for_numbers:
 				masked_logits[allowed_id] = logits[allowed_id]
 			return masked_logits
-		return logits
 
-	def __generate_tokens_in_value_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
-		"""generate tokens in state IN_PARAMETERS IN_VALUE"""
-		index_item = 1
-		for key_param, dict_schema in parameters.items():
-			if index_item - 1 == self.__index_key_param:
-				break
-			index_item += 1
-		self.__dynamic_ids = self.encode("\"").tolist()[0]
-		self.__dynamic_generated = "\""
-		while (self.__dynamic_generated.count("\"") != 2):
-			logits = self.get_logits_from_input_ids(self.__ids_current_prompt + self.__dynamic_ids)
-			masked_logits = self.__masked_logits_by_type(logits, dict_schema.get('type', ''))
-			index_max_logit = np.argmax(masked_logits)
-			self.__dynamic_generated += self.decode([index_max_logit])
-			self.__dynamic_ids.append(int(index_max_logit))
-			print(f"in generating: {self.__dynamic_generated}")
+		elif type_mask == 'function_name':
+			for index_id in self.__ids_function_names_set:
+				if self.__is_at_least_one_function(self.__dynamic_generated + self.__model.decode([index_id])):
+					masked_logits[index_id] = logits[index_id]
+			
+		return np.array(logits, dtype=np.float32)
+
+	def __add_dynamic_value_by_type(self, values_param: list[dict[str, str]]) -> None:
+		"""add dynamic generated when finish full value between quotes"""
+		dict_schema = values_param[self.__index_key_param - 1]
 		type_param = dict_schema.get('type', '')
+  
 		if type_param == 'number' or type_param == 'integer' or type_param == 'float':
-			print(f"in NUMBER: {self.__dynamic_generated}")
 			stripped_number = self.__dynamic_generated.rstrip().strip("\"")
-			if index_item - 1 < len(parameters):
+			if self.__index_key_param < len(values_param):
 				stripped_number += ','
 			self.__json_result += stripped_number
-			self.__ids_current_prompt += self.encode(stripped_number).tolist()[0]
+			self.__ids_current_prompt += self.__model.encode(stripped_number).tolist()[0]
 
 		else:
-			stripped_value = self.__dynamic_generated
 			self.__json_result += self.__dynamic_generated
 			self.__ids_current_prompt += self.__dynamic_ids
 
-	
+	def __generate_tokens_in_value_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
+		"""generate tokens in state IN_PARAMETERS IN_VALUE"""
+
+		dict_schema = list(parameters.values())[self.__index_key_param - 1]
+		
+		self.__dynamic_ids = self.__model.encode("\"").tolist()[0]
+		self.__dynamic_generated = "\""
+		while (self.__dynamic_generated.count("\"") != 2):
+			logits = self.__model.get_logits_from_input_ids(self.__ids_current_prompt + self.__dynamic_ids)
+			masked_logits = self.__mask_logits_by_type(logits, dict_schema.get('type', ''))
+			index_max_logit = np.argmax(masked_logits)
+			self.__dynamic_generated += self.__model.decode([int(index_max_logit)])
+			self.__dynamic_ids.append(int(index_max_logit))
+
+		self.__add_dynamic_value_by_type(list(parameters.values()))
+
 		if self.__filter_decoder.is_closed_brackets(self.__json_result):
 			self.__fsm.set_state(JSONState.IN_END)
-		elif index_item - 1 == len(parameters):
+		elif self.__index_key_param == len(parameters):
 			self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
-		elif index_item - 1 < len(parameters):
+		elif self.__index_key_param < len(parameters):
 			self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-		
-		return logits
+
 
 	def __generate_tokens_in_close_parameters(self) -> None:
-		bracket_id = self.encode("}")
+		"""generate tokens for closing json"""
+		bracket_id = self.__model.encode("}")
 		while not self.__filter_decoder.is_closed_brackets(self.__json_result):
 			self.__json_result += "}"
 			self.__ids_current_prompt.append(int(bracket_id))
@@ -233,7 +238,6 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		"""function generate each json output separate"""
 		while not self.__fsm.is_in_end_state():
 			print(f">>: {self.__json_result}")
-			print(f"parameter state:", self.__fsm.get_parameters_state())
 			if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
 				self.__generate_tokens_before_prompt()
 
@@ -271,6 +275,7 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 		""" execute json_generator from pipeline
 			for generating json_output
 		"""
+		self.__model = Small_LLM_Model()
 		self.__prepare_data(data)
 
 		for prompt_schema in self.__prompts:
@@ -286,22 +291,15 @@ class JSONGenerator(Small_LLM_Model, ProcessingStage):
 			'output_path': data.get('output_path', '')
 		}
 
-	def __get_parameters_keys(self, function_name: str) -> dict[str, dict[str, str]]:
-		""" get keys of function from functions definition"""
-		for function in self.__functions_definition:
-			if function.name == function_name:
-				keys = [key for key in function.parameters.keys()]
-				return keys
-		return []
-
 	def __get_parameters_function(self, function_name: str) -> dict[str, dict[str, str]]:
+		""" get dictionary parameters by function name"""
 		for function in self.__functions_definition:
 			if function.name == function_name:
 				return {key: value for key, value in function.parameters.items()}
 		return dict()
 
 	def __get_only_available_function(self, dynamic_generated: str) -> str:
-		"""get only function start with dynamic generated"""
+		"""get only function start with dynamic generated when found only one"""
 		for function in self.__function_names:
 			if function.startswith(dynamic_generated):
 				return function

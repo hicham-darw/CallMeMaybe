@@ -16,26 +16,20 @@ if __name__ == '__main__':
 
     arg_parser = ArgParser()
     arg_parser.initial_arguments()
-    json_manager = JSONManager(
-        arg_parser.get_functions_definition_path(),
-        arg_parser.get_prompts_path(),
-        arg_parser.get_model(),
-        arg_parser.get_output_path()
-    )
+    json_manager = JSONManager()
     data = {
         'functions_definition_path': arg_parser.get_functions_definition_path(),
-        'prompts_path': arg_parser.get_prompts_path()
+        'prompts_path': arg_parser.get_prompts_path(),
+        'output_path': arg_parser.get_output_path(),
+        'model': arg_parser.get_output_path(),
     }
+    json_manager.set_data_input(data)
     try:
-    	for stage in json_manager.get_stages():
-        	data = stage.execute(data)
+        json_manager.generate_json_file()
     except ReadingError as e:
         print(e)
     except ParsingError as e:
-    	print(e)
-#    except Exception as e:
-#        print("OKOKOKOKO")
-#        print(e)
+        print(e)
     print('FIN:', '#' * 40)
     end = time.time()
     print("time:", end - start)

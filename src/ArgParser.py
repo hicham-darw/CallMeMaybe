@@ -1,8 +1,8 @@
 import argparse
-from sys import exit, stderr
+
 
 class ArgParser:
-    """ ArgParser Class parse for user input argument"""
+    """ ArgParser Class parse user input"""
     
     # getters
     def get_prompts_path(self) -> str:

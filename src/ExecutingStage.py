@@ -2,7 +2,7 @@ from typing import Any
 from abc import ABC, abstractmethod
 
 
-class ProcessingStage(ABC):
+class ExecutingStage(ABC):
 	"""interface of json stages
 	"""
 	@abstractmethod
@@ -10,5 +10,3 @@ class ProcessingStage(ABC):
 		"""must implement this function on all derived class
 		"""
 		pass
-	
-

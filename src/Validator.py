@@ -1,7 +1,7 @@
 from typing import Any
 from pydantic import BaseModel, model_validator, Field
 from typing_extensions import Self
-from src.enums import FunctionDefinitionKeys
+from src.Enums import FunctionDefinitionKeys
 
 
 class PromptSchema(BaseModel):

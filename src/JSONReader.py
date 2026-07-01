@@ -1,12 +1,10 @@
 from typing import Any
-from sys import exit, stderr
 import json
-from src.validator import PromptSchema, FunctionDefinitionSchema
-from src.processing_stage import ProcessingStage
+from src.ExecutingStage import ExecutingStage
 from src.Exceptions import ReadingError
 
 
-class JSONReader(ProcessingStage):
+class JSONReader(ExecutingStage):
     """ Class JSONReader reads and stores json files 
     """
     def __init__(self) -> None:
@@ -28,10 +26,12 @@ class JSONReader(ProcessingStage):
         """ execute pipeline: read json files to parse them in next pipeline"""
         self.__read_functions_definition(data.get('functions_definition_path', ''))
         self.__read_prompts(data.get('prompts_path', ''))
-        return {
+
+        data.update({
             'functions_definition': self.__functions_definition,
             'prompts': self.__prompts
-        }
+        })
+        return data
 
     # read input files    
     def __read_functions_definition(self, path: str) -> None:

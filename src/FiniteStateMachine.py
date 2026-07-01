@@ -1,4 +1,4 @@
-from src.state import JSONState, JSONStatic, ParameterState
+from src.Enums import JSONState, JSONStatic, ParameterState
 
 
 class FiniteStateMachine:
@@ -34,7 +34,7 @@ class FiniteStateMachine:
         self.__static_json = state
 
     def is_in_end_state(self) -> bool:
-        """ checking if is end state or not"""
+        """ checking if is in end state or not"""
         if self.__state == JSONState.IN_END:
             return True
         return False
@@ -44,18 +44,3 @@ class FiniteStateMachine:
         self.set_state(JSONState.BEFORE_PROMPT)
         self.set_static_json(JSONStatic.STR_BEFORE_PROMPT)
         self.set_parameters_state(ParameterState.IN_KEY)
-
-    def is_closed_json(self, json_params: str) -> bool:
-        """is closed bracket to know generating is well"""
-        json_params = json_params.strip()
-        if json_params[0] == '{' and json_params[-1] == '}':
-            return True
-        return False
-
-    def is_finished_parameters_value(self, generated_str) -> bool:
-        """check if value of parameters is finihsed or not"""
-        if self.__state == JSONState.IN_PARAMETERS_VALUE\
-                and self.is_closed_json(generated_str):
-            return True
-        return False        
-            
