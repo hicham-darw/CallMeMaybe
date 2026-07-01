@@ -1,7 +1,6 @@
 from src.ArgParser import ArgParser
 from src.JSONManager import JSONManager
 from src.Exceptions import ParsingError, ReadingError
-import time
 
 
 if __name__ == '__main__':
@@ -28,4 +27,3 @@ if __name__ == '__main__':
         print(e)
     except Exception as e:
         print(e)
-        

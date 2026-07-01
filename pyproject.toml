@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.13.4",
     "typing-extensions>=4.15.0",
     "mypy>=2.1.0",
+    "flake8>=7.3.0",
 ]
 
 [build-system]
