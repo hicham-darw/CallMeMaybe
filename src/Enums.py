@@ -20,7 +20,7 @@ class JSONState(Enum):
     """
     BEFORE_PROMPT = auto()
     IN_PROMPT = auto()
-    
+
     BEFORE_NAME = auto()
     IN_NAME = auto()
 
@@ -31,16 +31,15 @@ class JSONState(Enum):
 
 
 class ParameterState(Enum):
-	""" states for parameters JSON shape"""
-	IN_KEY = auto()
-	IN_VALUE = auto()	
-
-	IN_CLOSE = auto()
+    """ states for parameters JSON shape"""
+    IN_KEY = auto()
+    IN_VALUE = auto()
+    IN_CLOSE = auto()
 
 
 class FunctionDefinitionKeys(Enum):
-	"""enum for functions definition schema"""
-	name = 'name'
-	description = 'description'
-	parameters = 'parameters'
-	returns = 'returns'
+    """enum for functions definition schema"""
+    name = 'name'
+    description = 'description'
+    parameters = 'parameters'
+    returns = 'returns'

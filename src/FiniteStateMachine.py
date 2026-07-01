@@ -2,7 +2,8 @@ from src.Enums import JSONState, JSONStatic, ParameterState
 
 
 class FiniteStateMachine:
-    
+    """ finite state machine for remain model what a state in"""
+
     def __init__(self) -> None:
         """constructor of finite state machine  initial stats"""
         self.__state = JSONState.BEFORE_PROMPT
@@ -16,7 +17,7 @@ class FiniteStateMachine:
     def get_state(self) -> JSONState:
         """ get state of finite state machine"""
         return self.__state
-    
+
     def get_parameters_state(self) -> ParameterState:
         """ get parameters state"""
         return self.__parameters_state

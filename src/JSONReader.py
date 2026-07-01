@@ -5,37 +5,41 @@ from src.Exceptions import ReadingError
 
 
 class JSONReader(ExecutingStage):
-    """ Class JSONReader reads and stores json files 
-    """
-    def __init__(self) -> None:
-        """constructor of JSONReader load every file json and store the in hash-map"""
-        self.__prompts: Any = list()
-        self.__functions_definition: Any = list()
+    """Class JSONReader reads and stores json files."""
 
-    #getters
+    def __init__(self) -> None:
+        """Load every JSON file and store the result in memory."""
+        self.__prompts: list[dict[str, str]] = list()
+        self.__functions_definition: list[dict[str, Any]] = list()
+
+    # getters
     def get_prompts(self) -> list[dict[str, str]]:
-        """ get all prompts """
+        """get all prompts"""
         return self.__prompts
-    
+
     def get_functions_definition(self) -> list[dict[str, Any]]:
         """get functions definition schemas"""
         return self.__functions_definition
 
     # for pipeline execution
     def execute(self, data: Any) -> Any:
-        """ execute pipeline: read json files to parse them in next pipeline"""
-        self.__read_functions_definition(data.get('functions_definition_path', ''))
+        """Read JSON files and prepare the next pipeline stage."""
+        self.__read_functions_definition(
+            data.get('functions_definition_path', '')
+        )
         self.__read_prompts(data.get('prompts_path', ''))
 
-        data.update({
-            'functions_definition': self.__functions_definition,
-            'prompts': self.__prompts
-        })
+        data.update(
+            {
+                'functions_definition': self.__functions_definition,
+                'prompts': self.__prompts,
+            }
+        )
         return data
 
-    # read input files    
+    # read input files
     def __read_functions_definition(self, path: str) -> None:
-        """read function_definition  from json file"""
+        """Read function_definition from json file."""
         self.__read_file(path, 'functions_definition')
 
     def __read_prompts(self, path: str) -> None:
@@ -53,7 +57,7 @@ class JSONReader(ExecutingStage):
                 self.__functions_definition = data
         except IsADirectoryError:
             raise ReadingError(f"Error: Cannot read {key} is a directory!")
-        except PermissionError as e: #files error handling
+        except PermissionError:
             raise ReadingError(f"Error: Cannot read {key} not permitted!")
         except FileNotFoundError:
             raise ReadingError(f"Error: Cannot read {key} file not found!")

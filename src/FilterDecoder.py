@@ -7,15 +7,21 @@ class FilterDecoder:
         self.__tokens_before_params: list[int] = []
 
     # setters
-    def set_tokens_before_prompt(self, tokens_before_prompt: list[int]) -> None:
+    def set_tokens_before_prompt(
+        self, tokens_before_prompt: list[int]
+    ) -> None:
         """set ids stringbefore_prompt"""
         self.__tokens_before_prompt = tokens_before_prompt
 
-    def set_tokens_before_name(self, tokens_before_name: list[int]) -> None:
+    def set_tokens_before_name(
+        self, tokens_before_name: list[int]
+    ) -> None:
         """set ids string before name"""
         self.__tokens_before_name = tokens_before_name
 
-    def set_tokens_before_parameters(self, list_before_param: list[int]) -> None:
+    def set_tokens_before_parameters(
+        self, list_before_param: list[int]
+    ) -> None:
         """set ids of string before parameters"""
         self.__tokens_before_params = list_before_param
 
@@ -32,15 +38,21 @@ class FilterDecoder:
         """get ids of string before parameters"""
         return self.__tokens_before_params
 
-    def is_in_functions(self, dynamic_str: str, function_names: list[str]) -> bool:
+    def is_in_functions(
+        self, dynamic_str: str, function_names: list[str]
+    ) -> bool:
         """check if dynamic string in a function_names"""
         for function_name in function_names:
             if function_name.startswith(dynamic_str):
                 return True
         return False
-    
-    def is_found_only_one_function(self, dynamic_generated: str, function_names: list[str]) -> bool:
-        """check if dynamic string starts in one function not more in function names"""
+
+    def is_found_only_one_function(
+        self, dynamic_generated: str, function_names: list[str]
+    ) -> bool:
+        """check if dynamic string starts in one function
+              not more in function names
+        """
         counter = 0
         for function_name in function_names:
             if function_name.startswith(dynamic_generated):
@@ -62,4 +74,3 @@ class FilterDecoder:
         if stack:
             return False
         return True
-                

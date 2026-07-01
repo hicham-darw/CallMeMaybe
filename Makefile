@@ -1,5 +1,33 @@
+
+PYTHON := uv run python
+
+install:
+	uv sync
+
+run:
+	$(PYTHON) -m src
+
+debug:
+	$(PYTHON) -m pdb -m src
+
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
+	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
+
+lint:
+	uv run flake8 src
+	uv run mypy src \
+		--warn-return-any \
+		--warn-unused-ignores \
+		--ignore-missing-imports \
+		--disallow-untyped-defs \
+		--check-untyped-defs
+
+lint-strict:
+	uv run flake8 src
+	uv run mypy src --strict
+
+.PHONY: install run debug clean lint lint-strict
