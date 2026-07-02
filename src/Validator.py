@@ -12,18 +12,18 @@ class PromptSchema(BaseModel):
     def validate_prompt_schema(self) -> Self:
         keys = self.prompt.keys()
         if len(keys) != 1:
-            raise ValueError("Error dictionary must contain one pair.")
+            raise ValueError("dictionary must contain one pair.")
         if list(self.prompt)[0] != 'prompt':
-            raise ValueError("Error: key prompt must always prompt.")
+            raise ValueError("key prompt must always prompt.")
         return self
 
 
 class FunctionDefinitionSchema(BaseModel):
     """Model function definition schema for every function schema."""
     name: str = Field(
-        max_length=100,
+        max_length=40,
         min_length=3,
-        pattern=r"^[A-Za-z_.]+$",
+        pattern=r"^[A-Za-z_]+$",
         alias="name",
     )
     description: str = Field(
@@ -43,14 +43,17 @@ class FunctionDefinitionSchema(BaseModel):
         """Validate raw data before creating the model instance."""
         if not isinstance(data, dict):
             raise ValueError(
-                "Error: function_definition schema must be dictionary."
+                "function_definition schema must be dictionary."
             )
 
         all_keys = [key for key in data.keys()]
+        if len(all_keys) != 4:
+            raise ValueError(f"Missing field please check functions definition\n{data}")
+
         for key in all_keys:
             if key not in FunctionDefinitionKeys:
                 raise ValueError(
-                    f'Error: Invalid key {key} must be "type"'
+                    f'Invalid key "{key}" please check functions definition keys'
                 )
         return data
 
@@ -65,13 +68,13 @@ class FunctionDefinitionSchema(BaseModel):
         "Validate returns has only one item and all keys are 'type'."
         if len(self.returns) > 1:
             raise ValueError(
-                "Error: returns dictionary must contain 1 item {key: value}"
+                "returns dictionary must contain 1 item {key: value}"
             )
 
         for key in self.returns.keys():
             if key != "type":
-                raise KeyError(
-                    f'Error: in returns {key} must be "type".'
+                raise ValueError(
+                    f'in returns key "{key}" must be "type".'
                 )
 
     def __validate_parameters(self) -> None:
@@ -80,5 +83,5 @@ class FunctionDefinitionSchema(BaseModel):
             for key in value_dict.keys():
                 if key != "type":
                     raise KeyError(
-                        'Error: parameter keys must be "type".'
+                        'parameter keys must be "type".'
                     )

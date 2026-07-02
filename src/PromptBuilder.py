@@ -24,9 +24,8 @@ class PromptBuilder:
             - NO EXPLANATION. NO MARKDOWN.
             - never invent functions that are not listed above
             - extract values from the user prompt accurately
-        - Parameters with correct value for function calling
-            - ONLY JSON STRUCTURE
-        EXAMPLE OUTPUT:
+            - you must be strict and deterministic with parameters
+	EXAMPLE OUTPUT:
            if match one in AVAILABLE FUNCTIONS:
             {{
                 "prompt": "<USER PROMPT HERE>",
