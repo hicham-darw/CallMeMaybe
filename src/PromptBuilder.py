@@ -25,7 +25,7 @@ class PromptBuilder:
             - never invent functions that are not listed above
             - extract values from the user prompt accurately
             - you must be strict and deterministic with parameters
-	EXAMPLE OUTPUT:
+        EXAMPLE OUTPUT:
            if match one in AVAILABLE FUNCTIONS:
             {{
                 "prompt": "<USER PROMPT HERE>",

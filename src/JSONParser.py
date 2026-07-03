@@ -51,13 +51,13 @@ class JSONParser(ExecutingStage):
             raise ValueError(
                 "Error: FunctionsDefinition schema must list or dictionary"
             )
-        
+
         self.__functions_definition.append(
             FunctionDefinitionSchema(
                 name="unknown",
                 description="invalid prompt or empty",
                 parameters={'null': {'type': 'null'}},
-                returns={'type': 'null'}                
+                returns={'type': 'null'}
             )
         )
 

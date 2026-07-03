@@ -1,5 +1,5 @@
 
-PYTHON := uv run python
+PYTHON := uv run python3
 
 install:
 	uv sync
