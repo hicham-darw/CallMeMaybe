@@ -38,6 +38,15 @@ class FunctionDefinitionSchema(BaseModel):
     )
     returns: dict[str, str] = Field(max_length=1, alias="returns")
 
+    @model_validator(mode='before')
+    def validate_keys_functions_definition(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            raise ValueError('functions definition must be dictionary')
+        keys = list(data.keys())
+        for key in keys:
+            if key not in FunctionDefinitionKeys:
+                raise ValueError(f'{key} must be in {keys}')
+
     @model_validator(mode='after')
     def validate_function_definition_schema(self) -> Self:
         """Validate the function definition after model creation."""

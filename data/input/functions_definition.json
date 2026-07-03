@@ -1,0 +1,15 @@
+{
+  "name": "fn_add_numbers",
+  "description": "add two numbers",
+  "parameters": {
+    "a": {
+      "type": "number"
+    },
+    "b": {
+      "type": "number"
+    }
+  },
+  "returns": {
+   "type": "number"
+  }
+}
