@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 from src.FiniteStateMachine import FiniteStateMachine
 from src.FilterDecoder import FilterDecoder
 from src.Enums import JSONStatic, ParameterState
+from src.Visualizer import Visualizer
 import json
 
 
@@ -310,7 +311,6 @@ class JSONGenerator(ExecutingStage):
     def __generate(self) -> None:
         """function generate each json output separate"""
         while not self.__fsm.is_in_end_state():
-            print(f">>: {self.__json_result}")
             if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
                 self.__generate_tokens_before_prompt()
 
@@ -328,6 +328,7 @@ class JSONGenerator(ExecutingStage):
 
             elif self.__fsm.get_state() == JSONState.IN_PARAMETERS:
                 self.__generate_tokens_in_parameters()
+        Visualizer.print_next(self.__json_result.rstrip().rstrip('\n'))
 
     def __reinitial_data_for_each_prompt(self, user_prompt: str) -> None:
         """Reinitialize data for the next prompt."""
@@ -356,8 +357,8 @@ class JSONGenerator(ExecutingStage):
             self.__reinitial_data_for_each_prompt(
                 prompt_schema.prompt['prompt']
             )
+
             self.__generate()
-            print(f"json result @: {self.__json_result}")
             self.__json_results.append(self.__json_result)
 
         return {

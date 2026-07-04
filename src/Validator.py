@@ -46,6 +46,7 @@ class FunctionDefinitionSchema(BaseModel):
         for key in keys:
             if key not in FunctionDefinitionKeys:
                 raise ValueError(f'{key} must be in {keys}')
+        return data
 
     @model_validator(mode='after')
     def validate_function_definition_schema(self) -> Self:
