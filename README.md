@@ -22,7 +22,6 @@
 * [Testing Strategy](#testing-strategy)
 * [Example Usage](#example-usage)
 * [Resources](#resources)
-* [AI Usage Transparency](#ai-usage-transparency)
 
 ---
 
@@ -578,10 +577,6 @@ Expected:
 * LLM videos
 
 ---
-
-# AI Usage Transparency
-
-AI tools were used as productivity assistants and educational resources.
 
 ## Manually implemented components
 
