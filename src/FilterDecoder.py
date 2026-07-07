@@ -63,14 +63,17 @@ class FilterDecoder:
 
     def is_closed_brackets(self, json_str: str) -> bool:
         """check if is closed brackets in generated json"""
+        counter = 0
         stack = []
+        index_in_param = json_str.rfind('parameters')
+        if index_in_param < 0:
+            return False
+        json_str = json_str[index_in_param:]
         for char in json_str:
             if char == '{':
-                stack.append('{')
-            elif char == '}' and stack:
-                stack.pop()
-            elif char == '}' and not stack:
-                return False
-        if stack:
-            return False
-        return True
+                counter += 1
+            elif char == '}':
+                counter -= 1
+        if counter == -1:
+            return True
+        return False

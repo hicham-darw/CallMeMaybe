@@ -260,6 +260,7 @@ class JSONGenerator(ExecutingStage):
         self.__dynamic_ids = self.__model.encode("\"").tolist()[0]
         self.__dynamic_generated = "\""
         while self.__dynamic_generated.count('"') != 2:
+            print("dynamic: ", self.__dynamic_generated)
             logits = self.__model.get_logits_from_input_ids(
                 self.__ids_current_prompt + self.__dynamic_ids
             )
@@ -272,6 +273,10 @@ class JSONGenerator(ExecutingStage):
                 [int(index_max_logit)]
             )
             self.__dynamic_ids.append(int(index_max_logit))
+            if len(self.__dynamic_generated) == self.__len_current_prompt:
+                self.__dynamic_generated += "\""
+                self.__dynamic_ids += self.__model.encode("\"").tolist()[0]
+                break
 
         self.__add_dynamic_value_by_type(list(parameters.values()))
 
@@ -337,6 +342,7 @@ class JSONGenerator(ExecutingStage):
         self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 
         self.__current_prompt = user_prompt
+        self.__len_current_prompt = len(self.__current_prompt)
         self.__ids_current_prompt = self.__prefix_ids[:]
 
         self.__index_key_param = 0
