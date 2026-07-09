@@ -267,7 +267,7 @@ class JSONGenerator(ExecutingStage):
         self.__dynamic_generated = "\""
         generated_value = ''
         escape_next = False
-        max_generated_chars = max(32, self.__len_current_prompt * 2)
+        max_generated_chars = self.__len_current_prompt
         while True:
             logits = self.__model.get_logits_from_input_ids(
                 self.__ids_current_prompt + self.__dynamic_ids
@@ -363,7 +363,7 @@ class JSONGenerator(ExecutingStage):
 
             elif self.__fsm.get_state() == JSONState.IN_PARAMETERS:
                 self.__generate_tokens_in_parameters()
-            Visualizer.print_next(self.__json_result.rstrip().rstrip('\n'))
+        Visualizer.print_next(self.__json_result.rstrip().rstrip('\n'))
 
     def __reinitial_data_for_each_prompt(self, user_prompt: str) -> None:
         """Reinitialize data for the next prompt."""
