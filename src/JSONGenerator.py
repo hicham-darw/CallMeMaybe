@@ -10,6 +10,7 @@ from src.FilterDecoder import FilterDecoder
 from src.Enums import JSONStatic, ParameterState
 from src.Visualizer import Visualizer
 import json
+import time
 
 
 class JSONGenerator(ExecutingStage):
@@ -120,7 +121,7 @@ class JSONGenerator(ExecutingStage):
             self.__current_prompt + '\", '
         ).tolist()[0]
         self.__json_result += (
-            self.__current_prompt.replace('"', "'") + '", '
+            json.dumps(self.__current_prompt) + ', '
         )
         self.__fsm.set_state(JSONState.BEFORE_NAME)
 
@@ -238,8 +239,6 @@ class JSONGenerator(ExecutingStage):
 
         if type_param in {'number', 'integer', 'float'}:
             stripped_number = self.__dynamic_generated.rstrip().strip('"')
-            if self.__index_key_param < len(values_param):
-                stripped_number += ','
             self.__json_result += stripped_number
             self.__ids_current_prompt += self.__model.encode(
                 stripped_number
@@ -249,6 +248,14 @@ class JSONGenerator(ExecutingStage):
             self.__json_result += self.__dynamic_generated
             self.__ids_current_prompt += self.__dynamic_ids
 
+    def __append_escaped_string_value(self, raw_value: str) -> None:
+        """Append a JSON-safe string literal to the generated result."""
+        escaped_value = json.dumps(raw_value)
+        self.__json_result += escaped_value
+        self.__ids_current_prompt += self.__model.encode(
+            escaped_value
+        ).tolist()[0]
+
     def __generate_tokens_in_value_parameters(
         self,
         parameters: dict[str, dict[str, str]],
@@ -256,35 +263,59 @@ class JSONGenerator(ExecutingStage):
         """generate tokens in state IN_PARAMETERS IN_VALUE"""
 
         dict_schema = list(parameters.values())[self.__index_key_param - 1]
+        type_param = dict_schema.get('type', '')
 
         self.__dynamic_ids = self.__model.encode("\"").tolist()[0]
         self.__dynamic_generated = "\""
-        while self.__dynamic_generated.count('"') != 2:
-            print("dynamic: ", self.__dynamic_generated)
+        generated_value = ''
+        escape_next = False
+        max_generated_chars = max(32, self.__len_current_prompt * 2)
+        while True:
             logits = self.__model.get_logits_from_input_ids(
                 self.__ids_current_prompt + self.__dynamic_ids
             )
             masked_logits = self.__mask_logits_by_type(
                 logits,
-                dict_schema.get('type', ''),
+                type_param,
             )
             index_max_logit = np.argmax(masked_logits)
-            self.__dynamic_generated += self.__model.decode(
-                [int(index_max_logit)]
-            )
+            decoded_token = self.__model.decode([int(index_max_logit)])
+            self.__dynamic_generated += decoded_token
             self.__dynamic_ids.append(int(index_max_logit))
-            if len(self.__dynamic_generated) == self.__len_current_prompt:
-                self.__dynamic_generated += "\""
-                self.__dynamic_ids += self.__model.encode("\"").tolist()[0]
-                break
 
-        self.__add_dynamic_value_by_type(list(parameters.values()))
+            for char in decoded_token:
+                if escape_next:
+                    generated_value += char
+                    escape_next = False
+                    continue
+
+                if char == '\\':
+                    generated_value += char
+                    escape_next = True
+                    continue
+
+                if char == '"':
+                    break
+
+                generated_value += char
+            else:
+                if len(generated_value) < max_generated_chars:
+                    continue
+
+            break
+
+        if type_param in {'number', 'integer', 'float'}:
+            self.__add_dynamic_value_by_type(list(parameters.values()))
+        else:
+            self.__append_escaped_string_value(generated_value)
 
         if self.__filter_decoder.is_closed_brackets(self.__json_result):
             self.__fsm.set_state(JSONState.IN_END)
         elif self.__index_key_param == len(parameters):
             self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
         elif self.__index_key_param < len(parameters):
+            self.__json_result += ","
+            self.__ids_current_prompt += self.__model.encode(',').tolist()[0]
             self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 
     def __generate_tokens_in_close_parameters(self) -> None:
@@ -301,7 +332,8 @@ class JSONGenerator(ExecutingStage):
         """generate tokens in state IN_PARAMETERS"""
         function_parameters = self.__get_parameters_function(
             self.__current_function_name[:-3]
-        )  # rm stripping current_function_name
+        )
+        
         if self.__fsm.get_parameters_state() == ParameterState.IN_KEY:
             self.__generate_tokens_in_key_parameters(function_parameters)
             self.__index_key_param += 1
@@ -333,7 +365,7 @@ class JSONGenerator(ExecutingStage):
 
             elif self.__fsm.get_state() == JSONState.IN_PARAMETERS:
                 self.__generate_tokens_in_parameters()
-        Visualizer.print_next(self.__json_result.rstrip().rstrip('\n'))
+            Visualizer.print_next(self.__json_result.rstrip().rstrip('\n'))
 
     def __reinitial_data_for_each_prompt(self, user_prompt: str) -> None:
         """Reinitialize data for the next prompt."""
@@ -358,7 +390,7 @@ class JSONGenerator(ExecutingStage):
         """
         self.__model = Small_LLM_Model()
         self.__prepare_data(data)
-
+        start = time.time()
         for prompt_schema in self.__prompts:
             self.__reinitial_data_for_each_prompt(
                 prompt_schema.prompt['prompt']
@@ -366,7 +398,7 @@ class JSONGenerator(ExecutingStage):
 
             self.__generate()
             self.__json_results.append(self.__json_result)
-
+        print(f"{(time.time() - start) / 60}")
         return {
             'json_results': self.__json_results,
             'output_path': data.get('output_path', '')

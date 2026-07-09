@@ -25,7 +25,6 @@ class JSONWriter(ExecutingStage):
                         file.write("\n")
                 except Exception:
                     pass
-
             if len(list_of_json) > 1:
                 file.write("]")
 

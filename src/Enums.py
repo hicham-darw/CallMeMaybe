@@ -3,7 +3,7 @@ from enum import Enum, auto
 
 class JSONStatic(str, Enum):
     """small set of structural JSON tokens controlled by the FSM."""
-    STR_BEFORE_PROMPT = '{"prompt": "'
+    STR_BEFORE_PROMPT = '{"prompt": '
     STR_BEFORE_NAME = '"name": "'
     STR_BEFORE_PARAMETERS = '"parameters": {'
 
