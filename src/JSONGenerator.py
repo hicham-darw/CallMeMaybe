@@ -237,16 +237,14 @@ class JSONGenerator(ExecutingStage):
         dict_schema = values_param[self.__index_key_param - 1]
         type_param = dict_schema.get('type', '')
 
-        if type_param in {'number', 'integer', 'float'}:
-            stripped_number = self.__dynamic_generated.rstrip().strip('"')
-            self.__json_result += stripped_number
-            self.__ids_current_prompt += self.__model.encode(
-                stripped_number
-            ).tolist()[0]
+        stripped_number = self.__dynamic_generated.rstrip().strip('"')
+        if type_param == 'number' and stripped_number.find('.') == -1:
+            stripped_number += ".0"
 
-        else:
-            self.__json_result += self.__dynamic_generated
-            self.__ids_current_prompt += self.__dynamic_ids
+        self.__json_result += stripped_number
+        self.__ids_current_prompt += self.__model.encode(
+            stripped_number
+        ).tolist()[0]
 
     def __append_escaped_string_value(self, raw_value: str) -> None:
         """Append a JSON-safe string literal to the generated result."""
