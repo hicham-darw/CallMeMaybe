@@ -59,9 +59,11 @@
 },
 {
     "prompt": "Replace all numbers in \"Hello 34 I'm 233 years old\" with NUMBERS",
-    "name": "unknown",
+    "name": "fn_substitute_string_with_regex",
     "parameters": {
-        "null": "numbers"
+        "source_string": "Hello 34 I'm 233 years old",
+        "regex": "([0-9]+)",
+        "replacement": "NUMBERS"
     }
 },
 {
@@ -69,7 +71,7 @@
     "name": "fn_substitute_string_with_regex",
     "parameters": {
         "source_string": "Programming is fun",
-        "regex": "([aeiouAEIOU])",
+        "regex": "([aeiouAEIOU]+)",
         "replacement": "**"
     }
 },

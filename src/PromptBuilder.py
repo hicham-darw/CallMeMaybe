@@ -24,19 +24,11 @@ class PromptBuilder:
             - NO EXPLANATION. NO MARKDOWN.
             - never invent functions that are not listed above
             - extract values from the user prompt accurately
-            - you must be strict and deterministic with parameters
         EXAMPLE OUTPUT:
-           if match one in AVAILABLE FUNCTIONS:
             {{
-                "prompt": "<USER PROMPT HERE>",
-                "name": "<function_name>",
-                "parameters": {{"a": 2, "b": 3}}
-            }}
-           else:
-            {{
-                "prompt": "<USER PROMPT HERE>",
-                "name": "null",
-                "parameters": null
+                "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
+                "name": "fn_substitute_string_with_regex",
+                "parameters": {{"source_string": "Programming is fun","regex": "([aeiouAEIOU]+)","replacement": "*"}}
             }}
         """
         return clean_prompt
