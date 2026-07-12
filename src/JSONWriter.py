@@ -24,7 +24,7 @@ class JSONWriter(ExecutingStage):
                     else:
                         file.write("\n")
                 except Exception:
-                    print("Warning: {output_json} is Invalid.")
+                    print(f"Warning: {output_json} is Invalid.")
             if len(list_of_json) > 1:
                 file.write("]")
 

@@ -65,7 +65,7 @@ class FilterDecoder:
         """check if is closed brackets in generated json"""
         counter = 0
         stack = []
-        index_in_param = json_str.rfind('parameters')
+        index_in_param = json_str.rfind('"parameters": ')
         if index_in_param < 0:
             return False
         json_str = json_str[index_in_param:]

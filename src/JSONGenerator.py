@@ -118,7 +118,7 @@ class JSONGenerator(ExecutingStage):
     def __generate_tokens_in_prompt(self) -> None:
         """generate token in state IN_PROMPT"""
         self.__ids_current_prompt += self.__model.encode(
-            self.__current_prompt + '\", '
+            json.dumps(self.__current_prompt) + ', '
         ).tolist()[0]
         self.__json_result += (
             json.dumps(self.__current_prompt) + ', '
@@ -266,7 +266,6 @@ class JSONGenerator(ExecutingStage):
         self.__dynamic_ids = self.__model.encode("\"").tolist()[0]
         self.__dynamic_generated = "\""
         generated_value = ''
-        escape_next = False
         max_generated_chars = self.__len_current_prompt
         while True:
             logits = self.__model.get_logits_from_input_ids(
@@ -278,23 +277,13 @@ class JSONGenerator(ExecutingStage):
             )
             index_max_logit = np.argmax(masked_logits)
             decoded_token = self.__model.decode([int(index_max_logit)])
+
             self.__dynamic_generated += decoded_token
             self.__dynamic_ids.append(int(index_max_logit))
 
             for char in decoded_token:
-                if escape_next:
-                    generated_value += char
-                    escape_next = False
-                    continue
-
-                if char == '\\':
-                    generated_value += char
-                    escape_next = True
-                    continue
-
                 if char == '"':
                     break
-
                 generated_value += char
             else:
                 if len(generated_value) < max_generated_chars:
@@ -302,19 +291,30 @@ class JSONGenerator(ExecutingStage):
 
             break
 
+        self.__append_new_parameter(parameters, generated_value, type_param) 
+        self.__change_state_in_parameters(parameters)	
+
+    def __append_new_parameter(self, parameters: dict[str, dict[str, str]], generated_value: str, type_param: str) -> None:
+        """ append new parameter by type"""
         if type_param in {'number', 'integer', 'float'}:
             self.__add_dynamic_value_by_type(list(parameters.values()))
         else:
             self.__append_escaped_string_value(generated_value)
 
+    def __change_state_in_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
+        """ change state in Parameter state or global state depend on json string"""
         if self.__filter_decoder.is_closed_brackets(self.__json_result):
             self.__fsm.set_state(JSONState.IN_END)
+        
         elif self.__index_key_param == len(parameters):
             self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
+	
         elif self.__index_key_param < len(parameters):
             self.__json_result += ","
             self.__ids_current_prompt += self.__model.encode(',').tolist()[0]
             self.__fsm.set_parameters_state(ParameterState.IN_KEY)
+
+
 
     def __generate_tokens_in_close_parameters(self) -> None:
         """generate tokens for closing json"""

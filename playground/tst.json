@@ -1,0 +1,17 @@
+{
+	"prompt": "Replace all vowels in 'Programming is fun parameters' with \"\\\"", 
+	"name": "fn_substitute_string_with_regex", 
+	"parameters": {
+		"source_string": "Programming is fun parameters",
+		"regex": "([aeiouAEIOU]+)",
+		"replacement": "\\"
+	}
+
+ {
+ 	"prompt": "Replace all vowels in 'Programming is fun parameters' with \"\\\\\"", 
+	"name": "fn_substitute_string_with_regex",
+	"parameters": {
+		"source_string": "Programming is fun parameters",
+		"regex": "([aeiouAEIOU]+)",
+		"replacement": "\\\\\\\\"
+	}
