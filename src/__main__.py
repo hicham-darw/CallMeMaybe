@@ -4,7 +4,6 @@ from src.Exceptions import ParsingError, ReadingError
 
 
 if __name__ == '__main__':
-
     arg_parser = ArgParser()
     arg_parser.initial_arguments()
 

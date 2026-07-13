@@ -5,7 +5,9 @@ description = "project about function Calling"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "flake8>=7.3.0",
     "llm_sdk",
+    "mypy>=2.2.0",
     "pydantic>=2.13.4",
 ]
 

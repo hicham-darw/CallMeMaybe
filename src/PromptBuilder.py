@@ -26,9 +26,16 @@ class PromptBuilder:
             - extract values from the user prompt accurately
         EXAMPLE OUTPUT:
             {{
-                "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
+                "prompt": (
+                    "Replace all vowels in 'Programming is fun' "
+                    "with asterisks"
+                ),
                 "name": "fn_substitute_string_with_regex",
-                "parameters": {{"source_string": "Programming is fun","regex": "([aeiouAEIOU]+)","replacement": "*"}}
+                "parameters": {{
+                    "source_string": "Programming is fun",
+                    "regex": "([aeiouAEIOU]+)",
+                    "replacement": "*"
+                }}
             }}
         """
         return clean_prompt

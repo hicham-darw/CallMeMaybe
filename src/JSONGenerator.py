@@ -291,30 +291,37 @@ class JSONGenerator(ExecutingStage):
 
             break
 
-        self.__append_new_parameter(parameters, generated_value, type_param) 
-        self.__change_state_in_parameters(parameters)	
+        self.__append_new_parameter(parameters, generated_value, type_param)
+        self.__change_state_in_parameters(parameters)
 
-    def __append_new_parameter(self, parameters: dict[str, dict[str, str]], generated_value: str, type_param: str) -> None:
+    def __append_new_parameter(
+        self,
+        parameters: dict[str, dict[str, str]],
+        generated_value: str, type_param: str
+    ) -> None:
         """ append new parameter by type"""
         if type_param in {'number', 'integer', 'float'}:
             self.__add_dynamic_value_by_type(list(parameters.values()))
         else:
             self.__append_escaped_string_value(generated_value)
 
-    def __change_state_in_parameters(self, parameters: dict[str, dict[str, str]]) -> None:
-        """ change state in Parameter state or global state depend on json string"""
+    def __change_state_in_parameters(
+        self,
+        parameters: dict[str, dict[str, str]]
+    ) -> None:
+        """
+        change state in Parameter state or global state depend on json string
+        """
         if self.__filter_decoder.is_closed_brackets(self.__json_result):
             self.__fsm.set_state(JSONState.IN_END)
-        
+
         elif self.__index_key_param == len(parameters):
             self.__fsm.set_parameters_state(ParameterState.IN_CLOSE)
-	
+
         elif self.__index_key_param < len(parameters):
             self.__json_result += ","
             self.__ids_current_prompt += self.__model.encode(',').tolist()[0]
             self.__fsm.set_parameters_state(ParameterState.IN_KEY)
-
-
 
     def __generate_tokens_in_close_parameters(self) -> None:
         """generate tokens for closing json"""
@@ -331,7 +338,7 @@ class JSONGenerator(ExecutingStage):
         function_parameters = self.__get_parameters_function(
             self.__current_function_name[:-3]
         )
-        
+
         if self.__fsm.get_parameters_state() == ParameterState.IN_KEY:
             self.__generate_tokens_in_key_parameters(function_parameters)
             self.__index_key_param += 1
