@@ -2,13 +2,30 @@ from typing import Any
 
 
 class PromptBuilder:
-
+    """
+    Build prompts containing available functions and generation instructions.
+    """
     def set_available_functions(self, functions_definition: list[Any]) -> None:
+        """
+        Set available functions for prompt generation.
+
+        Args:
+            functions_definition (list[Any]): List of function definitions.
+
+        Returns:
+            None
+        """
         self.__available_functions: str = ''
         for function in functions_definition:
             self.__available_functions += function.model_dump_json() + '\n'
 
     def __call__(self) -> str:
+        """
+        Generate the formatted prompt string.
+
+        Returns:
+            str: Prompt containing available functions and instructions.
+        """
         functions_block = self.__available_functions
 
         clean_prompt = f"""

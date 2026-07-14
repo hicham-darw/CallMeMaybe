@@ -17,7 +17,12 @@ class JSONGenerator(ExecutingStage):
     """JSONGenerator generate json by llm with constrained decoding
     """
     def __init__(self) -> None:
-        """init method for loading model init attribute for generatiing json"""
+        """
+        Initialize the JSON generator and its internal components.
+
+        This constructor initializes the prompt builder, finite state machine,
+        decoder filter, and internal state used during JSON generation.
+        """
         super().__init__()
         self.__json_results: list[str] = list()
 
@@ -35,7 +40,12 @@ class JSONGenerator(ExecutingStage):
         self.__json_result: str = ''
 
     def __prepare_function_names(self) -> None:
-        """prepare function names in set for duplicating"""
+        """
+        Prepare function names and their token IDs for constrained decoding.
+
+        Returns:
+            None
+        """
         self.__function_names: list[str] = list(
             function.name + "\", " for function in self.__functions_definition
         )
@@ -46,13 +56,26 @@ class JSONGenerator(ExecutingStage):
                 self.__ids_function_names_set.add(token_id)
 
     def __load_vocabulary(self) -> None:
-        """load vocabulary for constrained decoding"""
+        """
+        Load the model vocabulary required for constrained decoding.
+
+        Returns:
+            None
+        """
         vocab_path = self.__model.get_path_to_vocab_file()
         with open(vocab_path) as file:
             self.__vocabulary = json.load(file)
 
     def __init_ids_for_parameters(self) -> None:
-        """ initial ids for mask ids"""
+        """
+        Initialize token IDs used for parameter
+            value masking during decoding.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         for token_id in self.__vocabulary.values():
             decoded_id = self.__model.decode(token_id)
             if (
@@ -70,8 +93,16 @@ class JSONGenerator(ExecutingStage):
                 self.__ids_for_numbers.append(token_id)
 
     def __prepare_data(self, data: Any) -> None:
-        """prepare data for generating json file"""
+        """
+        Prepare input data and initialize components
+        required for JSON generation.
 
+        Args:
+            data (Any): Input data containing function definitions and prompts
+                required for JSON generation.
+        Returns:
+            None
+        """
         self.__functions_definition = data['functions_definition']
         self.__prompts = data['prompts']
         self.__prepare_function_names()
@@ -107,7 +138,12 @@ class JSONGenerator(ExecutingStage):
 
     # generating
     def __generate_tokens_before_prompt(self) -> None:
-        """generate tokens in state BEFORE_PROMPT"""
+        """
+        Generate tokens for the before-prompt state.
+
+        Returns:
+            None
+        """
         self.__ids_current_prompt += (
             self.__filter_decoder.get_tokens_before_prompt()
         )
@@ -116,7 +152,12 @@ class JSONGenerator(ExecutingStage):
         self.__fsm.set_state(JSONState.IN_PROMPT)
 
     def __generate_tokens_in_prompt(self) -> None:
-        """generate token in state IN_PROMPT"""
+        """
+        Generate tokens for the in-prompt state.
+
+        Returns:
+            None
+        """
         self.__ids_current_prompt += self.__model.encode(
             json.dumps(self.__current_prompt) + ', '
         ).tolist()[0]
@@ -126,7 +167,12 @@ class JSONGenerator(ExecutingStage):
         self.__fsm.set_state(JSONState.BEFORE_NAME)
 
     def __generate_tokens_before_name(self) -> None:
-        """generate tokens in state BEFORE_NAME"""
+        """
+        Generate tokens for the before-name state.
+
+        Returns:
+            None
+        """
         self.__ids_current_prompt += (
             self.__filter_decoder.get_tokens_before_name()
         )
@@ -135,14 +181,28 @@ class JSONGenerator(ExecutingStage):
         self.__fsm.set_state(JSONState.IN_NAME)
 
     def __is_at_least_one_function(self, generated: str) -> bool:
-        """found at least function name start with arguments"""
+        """
+        Check whether a generated string matches a function name prefix.
+
+        Args:
+            generated (str): Generated text to compare with function names.
+
+        Returns:
+            bool: True if at least one function name starts with the generated
+                string, otherwise False.
+        """
         for function_name in self.__function_names:
             if function_name.startswith(generated):
                 return True
         return False
 
     def __add_tokens_of_function_name(self) -> None:
-        """add tokens when found target function"""
+        """
+        Add generated tokens for the selected function name.
+
+        Returns:
+            None
+        """
         self.__dynamic_generated = self.__get_only_available_function(
             self.__dynamic_generated
         )
@@ -157,7 +217,12 @@ class JSONGenerator(ExecutingStage):
         self.__dynamic_generated = ''
 
     def __generate_tokens_in_name(self) -> None:
-        """generate tokens in state IN_NAME"""
+        """
+        Generate tokens for the in-name state.
+
+        Returns:
+            None
+        """
         full_ids = self.__ids_current_prompt + self.__dynamic_ids
         logits = self.__model.get_logits_from_input_ids(full_ids)
         masked_logits = self.__mask_logits_by_type(
@@ -179,7 +244,12 @@ class JSONGenerator(ExecutingStage):
             self.__fsm.set_state(JSONState.BEFORE_PARAMETERS)
 
     def __generate_tokens_before_parameters(self) -> None:
-        """generate tokens instate BEFORE_PARAMETERS"""
+        """
+        Generate tokens for the before-parameters state.
+
+        Returns:
+            None
+        """
         self.__ids_current_prompt += (
             self.__filter_decoder.get_tokens_before_parameters()
         )
@@ -192,7 +262,16 @@ class JSONGenerator(ExecutingStage):
         self,
         parameters: dict[str, dict[str, str]],
     ) -> None:
-        """generate tokens in state IN_PARAMETERS IN_KEY"""
+        """
+        Generate tokens for a parameter key.
+
+        Args:
+            parameters (dict[str, dict[str, str]]): Function parameters
+                definitions.
+
+        Returns:
+            None
+        """
         for index, key_name in enumerate(parameters.keys()):
             if index == self.__index_key_param:
                 break
@@ -208,7 +287,16 @@ class JSONGenerator(ExecutingStage):
         logits: list[float],
         type_mask: str,
     ) -> NDArray[np.float32]:
-        """mask logits by type mask """
+        """
+        Apply a mask to logits based on the specified token type.
+
+        Args:
+            logits (list[float]): Model output logits for each token.
+            type_mask (str): Type of token mask to apply.
+
+        Returns:
+            NDArray[np.float32]: Masked logits array.
+        """
         if type_mask == '':
             return np.array(logits, dtype=np.float32)
 
@@ -233,7 +321,15 @@ class JSONGenerator(ExecutingStage):
         self,
         values_param: list[dict[str, str]],
     ) -> None:
-        """Add generated text after closing quotes."""
+        """
+        Add a generated parameter value according to its type.
+
+        Args:
+            values_param (list[dict[str, str]]): List of parameter definitions.
+
+        Returns:
+            None
+        """
         dict_schema = values_param[self.__index_key_param - 1]
         type_param = dict_schema.get('type', '')
 
@@ -247,7 +343,14 @@ class JSONGenerator(ExecutingStage):
         ).tolist()[0]
 
     def __append_escaped_string_value(self, raw_value: str) -> None:
-        """Append a JSON-safe string literal to the generated result."""
+        """
+        Append an escaped string value to the generated JSON result.
+
+        Args:
+            raw_value (str): Raw string value to escape and append.
+        Returns:
+            None
+        """
         escaped_value = json.dumps(raw_value)
         self.__json_result += escaped_value
         self.__ids_current_prompt += self.__model.encode(
@@ -258,8 +361,16 @@ class JSONGenerator(ExecutingStage):
         self,
         parameters: dict[str, dict[str, str]],
     ) -> None:
-        """generate tokens in state IN_PARAMETERS IN_VALUE"""
+        """
+        Generate tokens for a parameter value.
 
+        Args:
+            parameters (dict[str, dict[str, str]]): Function parameter
+                definitions.
+
+        Returns:
+            None
+        """
         dict_schema = list(parameters.values())[self.__index_key_param - 1]
         type_param = dict_schema.get('type', '')
 
@@ -280,7 +391,6 @@ class JSONGenerator(ExecutingStage):
 
             self.__dynamic_generated += decoded_token
             self.__dynamic_ids.append(int(index_max_logit))
-
             for char in decoded_token:
                 if char == '"':
                     break
@@ -299,7 +409,18 @@ class JSONGenerator(ExecutingStage):
         parameters: dict[str, dict[str, str]],
         generated_value: str, type_param: str
     ) -> None:
-        """ append new parameter by type"""
+        """
+        Append a generated parameter value based on its type.
+
+        Args:
+            parameters (dict[str, dict[str, str]]): Function parameter
+                definitions.
+            generated_value (str): Generated parameter value.
+            type_param (str): Parameter data type.
+
+        Returns:
+            None
+        """
         if type_param in {'number', 'integer', 'float'}:
             self.__add_dynamic_value_by_type(list(parameters.values()))
         else:
@@ -310,7 +431,14 @@ class JSONGenerator(ExecutingStage):
         parameters: dict[str, dict[str, str]]
     ) -> None:
         """
-        change state in Parameter state or global state depend on json string
+        Update the state after generating a parameter value.
+
+        Args:
+            parameters (dict[str, dict[str, str]]): Function parameter
+                definitions.
+
+        Returns:
+            None
         """
         if self.__filter_decoder.is_closed_brackets(self.__json_result):
             self.__fsm.set_state(JSONState.IN_END)
@@ -324,17 +452,24 @@ class JSONGenerator(ExecutingStage):
             self.__fsm.set_parameters_state(ParameterState.IN_KEY)
 
     def __generate_tokens_in_close_parameters(self) -> None:
-        """generate tokens for closing json"""
-        bracket_id = self.__model.encode("}")
-        while not self.__filter_decoder.is_closed_brackets(
-            self.__json_result
-        ):
-            self.__json_result += "}"
-            self.__ids_current_prompt.append(int(bracket_id))
+        """
+        Generate closing tokens for the JSON object.
+
+        Returns:
+            None
+        """
+        bracket_id = self.__model.encode("}}")
+        self.__json_result += "}}"
+        self.__ids_current_prompt.append(int(bracket_id))
         self.__fsm.set_state(JSONState.IN_END)
 
     def __generate_tokens_in_parameters(self) -> None:
-        """generate tokens in state IN_PARAMETERS"""
+        """
+        Generate closing tokens for the JSON object.
+
+        Returns:
+            None
+        """
         function_parameters = self.__get_parameters_function(
             self.__current_function_name[:-3]
         )
@@ -351,7 +486,12 @@ class JSONGenerator(ExecutingStage):
         return None
 
     def __generate(self) -> None:
-        """function generate each json output separate"""
+        """
+        Generate a JSON output according to the current state machine state.
+
+        Returns:
+            None
+        """
         while not self.__fsm.is_in_end_state():
             if self.__fsm.get_state() == JSONState.BEFORE_PROMPT:
                 self.__generate_tokens_before_prompt()
@@ -373,7 +513,15 @@ class JSONGenerator(ExecutingStage):
         Visualizer.print_next(self.__json_result.rstrip().rstrip('\n'))
 
     def __reinitial_data_for_each_prompt(self, user_prompt: str) -> None:
-        """Reinitialize data for the next prompt."""
+        """
+        Reinitialize generation data for a new user prompt.
+
+        Args:
+            user_prompt (str): User prompt to process.
+
+        Returns:
+            None
+        """
         self.__fsm.set_state(JSONState.BEFORE_PROMPT)
         self.__fsm.set_static_json(JSONStatic.STR_BEFORE_PROMPT)
         self.__fsm.set_parameters_state(ParameterState.IN_KEY)
@@ -389,9 +537,15 @@ class JSONGenerator(ExecutingStage):
         self.__json_result = ''
 
     def execute(self, data: Any) -> Any:
-        """Execute json_generator from pipeline.
+        """
+        Execute JSON generation for the provided input data.
 
-        for generating json_output
+        Args:
+            data (Any): Input data containing prompts
+                and generation settings.
+        Returns:
+            Any: Dictionary containing generated JSON results
+                and output path.
         """
         self.__model = Small_LLM_Model()
         self.__prepare_data(data)
@@ -413,7 +567,15 @@ class JSONGenerator(ExecutingStage):
         self,
         function_name: str,
     ) -> dict[str, dict[str, str]]:
-        """ get dictionary parameters by function name"""
+        """
+        Get function parameters by function name.
+
+        Args:
+            function_name (str): Name of the function.
+        Returns:
+            dict[str, dict[str, str]]:
+                Dictionary containing function parameters.
+        """
         for function in self.__functions_definition:
             if function.name == function_name:
                 return {
@@ -426,7 +588,15 @@ class JSONGenerator(ExecutingStage):
         self,
         dynamic_generated: str,
     ) -> str:
-        """Return the only matching function prefix, if any."""
+        """
+        Return the matching function name prefix.
+
+        Args:
+            dynamic_generated (str): Generated function name prefix.
+
+        Returns:
+            str: Matching function name if found, otherwise the original value.
+        """
         for function in self.__function_names:
             if function.startswith(dynamic_generated):
                 return function

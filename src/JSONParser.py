@@ -10,6 +10,12 @@ class JSONParser(ExecutingStage):
     """Parse user input and extracted JSON arguments."""
 
     def __init__(self) -> None:
+        """
+        Initialize the JSON parser with empty input data.
+
+        Returns:
+            None
+        """
         self.__prompts: list[PromptSchema] = list()
         self.__functions_definition: list[FunctionDefinitionSchema] = list()
 
@@ -17,7 +23,16 @@ class JSONParser(ExecutingStage):
         self,
         prompts: list[dict[str, Any]],
     ) -> None:
-        """Create prompt models and validate them with Pydantic."""
+        """
+        Create and validate prompt models from input data.
+
+        Args:
+            prompts (list[dict[str, Any]]): Prompt data to validate and convert
+                into prompt models.
+
+        Returns:
+            None
+        """
         if isinstance(prompts, list):
             self.__prompts = [
                 PromptSchema(prompt=prompt)
@@ -32,7 +47,16 @@ class JSONParser(ExecutingStage):
         self,
         functions_definition: list[dict[str, Any]],
     ) -> None:
-        """Create function-definition models for the expected schema."""
+        """
+        Create and validate function definition models.
+
+        Args:
+            functions_definition (list[dict[str, Any]]):
+                Function definition data to convert into validated models.
+
+        Returns:
+            None
+        """
         if isinstance(functions_definition, list):
             for func_def in functions_definition:
                 self.__functions_definition.append(
@@ -53,7 +77,16 @@ class JSONParser(ExecutingStage):
             )
 
     def execute(self, data: Any) -> Any:
-        """Parse the structure and pass it to the generator stage."""
+        """
+        Parse input data and prepare it for the next pipeline stage.
+
+        Args:
+            data (Any): Input data containing prompts, function definitions,
+                and output path.
+
+        Returns:
+            Any: Updated data containing validated models and prepared paths.
+        """
         try:
             self.__create_prompts_models(data['prompts'])
             self.__create_functions_definition_models(
@@ -73,29 +106,37 @@ class JSONParser(ExecutingStage):
         return data
 
     def __create_folders_path(self, output_path: str) -> None:
-        """Create folders for the output path if needed."""
+        """
+        Create the output file path and required parent directories.
+
+        Args:
+            output_path (str): Path to the output file.
+
+        Returns:
+            None
+        """
         self.__path = Path(output_path)
         dirs = self.__path.parent
         dirs.mkdir(parents=True, exist_ok=True)
         self.__path.touch()
 
 
-if __name__ == "__main__":
-    parser = JSONParser()
-    parser.execute({
-        'functions_definition': {
-            "name": "fn_get_square_root",
-            "description": "Calculate the square root of a number.",
-            "parameters": {
-                "a": {
-                    "type": "number"
-                }
-            },
-            "returns": {
-                  "type": "number"
-            }
-          },
-        'prompts': {
-            'prompt': "hello"
-        }
-    })
+# if __name__ == "__main__":
+#     parser = JSONParser()
+#     parser.execute({
+#         'functions_definition': {
+#             "name": "fn_get_square_root",
+#             "description": "Calculate the square root of a number.",
+#             "parameters": {
+#                 "a": {
+#                     "type": "number"
+#                 }
+#             },
+#             "returns": {
+#                   "type": "number"
+#             }
+#           },
+#         'prompts': {
+#             'prompt': "hello"
+#         }
+#     })

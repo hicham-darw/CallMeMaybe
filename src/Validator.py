@@ -10,6 +10,16 @@ class PromptSchema(BaseModel):
 
     @model_validator(mode='after')
     def validate_prompt_schema(self) -> Self:
+        """
+        Validate that the prompt dictionary contains only the required key.
+
+        Returns:
+            Self: Validated prompt schema instance.
+
+        Raises:
+            ValueError: If the prompt dictionary does not contain exactly
+                one valid prompt key.
+        """
         keys = self.prompt.keys()
         if len(keys) != 1:
             raise ValueError("dictionary must contain one pair.")
@@ -40,6 +50,19 @@ class FunctionDefinitionSchema(BaseModel):
 
     @model_validator(mode='before')
     def validate_keys_functions_definition(cls, data: Any) -> Any:
+        """
+        Validate function definition keys before model creation.
+
+        Args:
+            data (Any): Raw function definition data.
+
+        Returns:
+            Any: Validated function definition data.
+
+        Raises:
+            ValueError: If the input is not a valid dictionary or contains
+                unsupported keys.
+        """
         if not isinstance(data, dict):
             raise ValueError('functions definition must be dictionary')
         keys = list(data.keys())
@@ -50,19 +73,36 @@ class FunctionDefinitionSchema(BaseModel):
 
     @model_validator(mode='after')
     def validate_function_definition_schema(self) -> Self:
-        """Validate the function definition after model creation."""
+        """
+        Validate the function definition after model creation.
+
+        Returns:
+            Self: Validated function definition schema.
+        """
 
         self.__validate_parameters()
         self.__validate_returns()
         return self
 
     def __validate_keys_parameters(self) -> None:
+        """
+        Validate function parameter keys.
+
+        Returns:
+            None
+        """
         keys_parameters = list(self.parameters.keys())
         for key_param in keys_parameters:
             if not key_param:
                 raise ValueError('key parameters cannot be empty')
 
     def __validate_values_parameters(self) -> None:
+        """
+        Validate function parameter values.
+
+        Returns:
+            None
+        """
         values_parameters = list(self.parameters.values())
         for key_val in values_parameters:
             if not isinstance(key_val, dict):
@@ -76,12 +116,26 @@ class FunctionDefinitionSchema(BaseModel):
                 raise ValueError('key of values in parameters must be "type"')
 
     def __validate_parameters(self) -> None:
-        """Validate parameter keys."""
+        """
+        Validate function parameters structure.
+
+        Returns:
+            None
+        """
         self.__validate_keys_parameters()
         self.__validate_values_parameters()
 
     def __validate_returns(self) -> None:
-        "Validate returns has only one item and all keys are 'type'."
+        """
+        Validate function return structure.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the return definition does not contain a single
+                type key.
+        """
         if len(self.returns) > 1:
             raise ValueError(
                 "returns dictionary must contain 1 item {key: value}"

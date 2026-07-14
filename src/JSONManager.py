@@ -11,6 +11,12 @@ class JSONManager:
     """
 
     def __init__(self) -> None:
+        """
+        Initialize the JSON manager with pipeline execution stages.
+
+        Returns:
+            None
+        """
         self.__data: dict[str, Any] = dict()
         self.__stages: list[ExecutingStage] = [
             JSONReader(),
@@ -20,18 +26,45 @@ class JSONManager:
         ]
 
     def set_data_input(self, data: dict[str, Any]) -> None:
+        """
+        Set the input data for the JSON pipeline.
+
+        Args:
+            data (dict[str, Any]): Input data to process.
+
+        Returns:
+            None
+        """
         self.__data = data
 
     def get_stages(self) -> list[ExecutingStage]:
-        """get all stages pipeline"""
+        """
+        Get all stages in the pipeline.
+
+        Returns:
+            list[ExecutingStage]: List of pipeline execution stages.
+        """
         return self.__stages
 
     def add_stage(self, stage: ExecutingStage) -> None:
-        """additional function for adding stage just for automation"""
+        """
+        Add a new execution stage to the pipeline.
+
+        Args:
+            stage (ExecutingStage): Pipeline stage to add.
+
+        Returns:
+            None
+        """
         self.__stages.append(stage)
 
     def generate_json_file(self) -> None:
-        """generate json file run full pipeline"""
+        """
+        Run the full pipeline to generate the JSON file.
+
+        Returns:
+            None
+        """
         for stage in self.__stages:
             self.__data = stage.execute(self.__data)
 

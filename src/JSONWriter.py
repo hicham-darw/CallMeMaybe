@@ -7,8 +7,15 @@ class JSONWriter(ExecutingStage):
     """ JSONWriter class write a json to a specific file from user"""
 
     def execute(self, data: Any) -> Any:
-        """execute pipeline serialize data to specific output path"""
+        """
+        Serialize generated JSON results and write them to the output file.
 
+        Args:
+            data (Any): Input data containing JSON results and output path.
+
+        Returns:
+            Any: Updated pipeline data.
+        """
         list_of_json = data.get('json_results', [])
         with open(data['output_path'], "w") as file:
 

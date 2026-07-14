@@ -8,22 +8,46 @@ class JSONReader(ExecutingStage):
     """Class JSONReader reads and stores json files."""
 
     def __init__(self) -> None:
-        """Load every JSON file and store the result in memory."""
+        """
+        Initialize the JSON reader with empty data containers.
+
+        Returns:
+            None
+        """
         self.__prompts: list[dict[str, str]] = list()
         self.__functions_definition: list[dict[str, Any]] = list()
 
     # getters
     def get_prompts(self) -> list[dict[str, str]]:
-        """get all prompts"""
+        """
+        Get all prompts.
+
+        Returns:
+            list[dict[str, str]]: List of stored prompts.
+        """
         return self.__prompts
 
     def get_functions_definition(self) -> list[dict[str, Any]]:
-        """get functions definition schemas"""
+        """
+        Get function definition schemas.
+
+        Returns:
+            list[dict[str, Any]]: List of function definition schemas.
+        """
         return self.__functions_definition
 
     # for pipeline execution
     def execute(self, data: Any) -> Any:
-        """Read JSON files and prepare the next pipeline stage."""
+        """
+        Read JSON files and prepare data for the next pipeline stage.
+
+        Args:
+            data (Any): Input data containing JSON file paths.
+
+        Returns:
+            Any: Updated data containing loaded prompts
+                and function definitions.
+        """
         self.__read_functions_definition(
             data.get('functions_definition_path', '')
         )
@@ -39,15 +63,40 @@ class JSONReader(ExecutingStage):
 
     # read input files
     def __read_functions_definition(self, path: str) -> None:
-        """Read function_definition from json file."""
+        """
+        Read function definitions from a JSON file.
+
+        Args:
+            path (str): Path to the JSON file.
+
+        Returns:
+            None
+        """
         self.__read_file(path, 'functions_definition')
 
     def __read_prompts(self, path: str) -> None:
-        """ read prompts from json file """
+        """
+        Read prompts from a JSON file.
+
+        Args:
+            path (str): Path to the JSON file.
+
+        Returns:
+            None
+        """
         self.__read_file(path, 'prompts')
 
     def __read_file(self, filename: str, key: str) -> None:
-        """ read file with specific parameter path"""
+        """
+        Read a JSON file and store its content by key.
+
+        Args:
+            filename (str): Path to the JSON file.
+            key (str): Data key indicating the type of content to store.
+
+        Returns:
+            None
+        """
         try:
             with open(filename, "r") as file:
                 data = json.load(file)

@@ -4,6 +4,8 @@ from src.Exceptions import ParsingError, ReadingError
 
 
 if __name__ == '__main__':
+    """ main project start here"""
+
     arg_parser = ArgParser()
     arg_parser.initial_arguments()
 
@@ -14,7 +16,6 @@ if __name__ == '__main__':
         ),
         'prompts_path': arg_parser.get_prompts_path(),
         'output_path': arg_parser.get_output_path(),
-        'model': arg_parser.get_output_path(),
     }
     json_manager.set_data_input(data)
 
